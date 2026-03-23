@@ -1,15 +1,24 @@
 import { useState } from 'react';
-import { Phone, User, MapPin, Shield, Loader2, CheckCircle2, Lock, Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
+import { Phone, User, MapPin, Shield, Loader2, Lock, Eye, EyeOff, LogIn, UserPlus, Zap } from 'lucide-react';
 import { registerUser, verifyOTP, loginUser } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import LocationMap from '@/components/citizen/LocationMap';
 
 const CITIES = [
   'الرمادي', 'الفلوجة', 'هيت', 'حديثة', 'عنة', 'القائم',
   'الحبانية', 'الكرمة', 'الرطبة', 'راوة', 'عامرية الفلوجة',
   'الصقلاوية', 'الخالدية', 'البغدادي', 'كبيسة'
 ];
+
+/** Convert local 07xxxxxxxxx to international 964xxxxxxxxxx */
+function toInternational(local: string): string {
+  const digits = local.replace(/\D/g, '');
+  if (digits.startsWith('07') && digits.length === 11) {
+    return '964' + digits.slice(1);
+  }
+  if (digits.startsWith('964')) return digits;
+  return '964' + digits;
+}
 
 type Mode = 'login' | 'register' | 'otp';
 
@@ -19,45 +28,24 @@ const Register = () => {
 
   const [mode, setMode] = useState<Mode>('login');
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('964');
+  const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [lat, setLat] = useState<number | null>(null);
-  const [lng, setLng] = useState<number | null>(null);
-  const [locationEnabled, setLocationEnabled] = useState(false);
-  const [locationLoading, setLocationLoading] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const enableLocation = () => {
-    setLocationLoading(true);
-    setError('');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLat(pos.coords.latitude);
-        setLng(pos.coords.longitude);
-        setLocationEnabled(true);
-        setLocationLoading(false);
-      },
-      (err) => {
-        setError('تعذر الوصول للموقع الجغرافي. يرجى السماح بالوصول من إعدادات المتصفح.');
-        setLocationLoading(false);
-        console.error('Geolocation error:', err);
-      },
-      { enableHighAccuracy: true, timeout: 15000 }
-    );
-  };
+  const fullPhone = toInternational('07' + phone);
 
   const handleLogin = async () => {
-    if (!phone || phone.length < 13) return setError('يرجى إدخال رقم هاتف صحيح (964XXXXXXXXXX)');
+    if (phone.length !== 9) return setError('يرجى إدخال 9 أرقام بعد 07');
     if (!password) return setError('يرجى إدخال كلمة المرور');
 
     setLoading(true);
     setError('');
     try {
-      const res = await loginUser({ phone, password });
+      const res = await loginUser({ phone: fullPhone, password });
       login(res.data.token, res.data.user);
       navigate('/home', { replace: true });
     } catch (err: any) {
@@ -69,15 +57,14 @@ const Register = () => {
 
   const handleRegister = async () => {
     if (!name.trim()) return setError('يرجى إدخال الاسم');
-    if (!phone || phone.length < 13) return setError('يرجى إدخال رقم هاتف صحيح (964XXXXXXXXXX)');
+    if (phone.length !== 9) return setError('يرجى إدخال 9 أرقام بعد 07');
     if (!city) return setError('يرجى اختيار المدينة');
     if (!password || password.length < 6) return setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
-    if (!locationEnabled) return setError('يرجى تفعيل الموقع الجغرافي');
 
     setLoading(true);
     setError('');
     try {
-      await registerUser({ name: name.trim(), phone, city, password, lat: lat!, lng: lng! });
+      await registerUser({ name: name.trim(), phone: fullPhone, city, password });
       setMode('otp');
     } catch (err: any) {
       setError(err.response?.data?.error || 'حدث خطأ في التسجيل');
@@ -91,7 +78,7 @@ const Register = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await verifyOTP({ phone, code: otpCode });
+      const res = await verifyOTP({ phone: fullPhone, code: otpCode });
       login(res.data.token, res.data.user);
       navigate('/home', { replace: true });
     } catch (err: any) {
@@ -128,24 +115,27 @@ const Register = () => {
               <p className="text-sm text-muted-foreground mt-1">أدخل رقم هاتفك وكلمة المرور</p>
             </div>
 
-            {/* Phone */}
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                 <Phone className="w-3.5 h-3.5 inline ml-1" />
                 رقم الهاتف
               </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, '');
-                  if (val.startsWith('964')) setPhone(val.slice(0, 13));
-                  else setPhone('964');
-                }}
-                placeholder="9647XXXXXXXXX"
-                dir="ltr"
-                className="w-full px-4 py-3 rounded-xl border border-input bg-card text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 text-left"
-              />
+              <div className="flex rounded-xl border border-input bg-card overflow-hidden focus-within:ring-2 focus-within:ring-accent/50" dir="ltr">
+                <span className="flex items-center justify-center px-3 bg-muted border-r border-input text-sm font-bold text-muted-foreground select-none min-w-[48px]">
+                  07
+                </span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={phone}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 9);
+                    setPhone(val);
+                  }}
+                  placeholder="8x xxx xxxx"
+                  className="flex-1 px-3 py-3 bg-transparent text-foreground text-sm placeholder:text-muted-foreground focus:outline-none text-left tracking-wide"
+                />
+              </div>
             </div>
 
             {/* Password */}
@@ -234,19 +224,23 @@ const Register = () => {
                 <Phone className="w-3.5 h-3.5 inline ml-1" />
                 رقم الهاتف
               </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, '');
-                  if (val.startsWith('964')) setPhone(val.slice(0, 13));
-                  else setPhone('964');
-                }}
-                placeholder="9647XXXXXXXXX"
-                dir="ltr"
-                className="w-full px-4 py-3 rounded-xl border border-input bg-card text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 text-left"
-              />
-              <p className="text-[10px] text-muted-foreground mt-1">سيتم إرسال رمز التحقق عبر واتساب مرة واحدة فقط</p>
+              <div className="flex rounded-xl border border-input bg-card overflow-hidden focus-within:ring-2 focus-within:ring-accent/50" dir="ltr">
+                <span className="flex items-center justify-center px-3 bg-muted border-r border-input text-sm font-bold text-muted-foreground select-none min-w-[48px]">
+                  07
+                </span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={phone}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 9);
+                    setPhone(val);
+                  }}
+                  placeholder="8x xxx xxxx"
+                  className="flex-1 px-3 py-3 bg-transparent text-foreground text-sm placeholder:text-muted-foreground focus:outline-none text-left tracking-wide"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">سيتم إرسال رمز التحقق عبر واتساب</p>
             </div>
 
             {/* Password */}
@@ -290,39 +284,6 @@ const Register = () => {
               </select>
             </div>
 
-            {/* Location */}
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                <MapPin className="w-3.5 h-3.5 inline ml-1" />
-                الموقع الجغرافي
-              </label>
-              {!locationEnabled ? (
-                <button
-                  onClick={enableLocation}
-                  disabled={locationLoading}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-accent/50 bg-accent/5 text-accent text-sm font-bold hover:bg-accent/10 transition-all disabled:opacity-50"
-                >
-                  {locationLoading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> جاري تحديد الموقع...</>
-                  ) : (
-                    <><MapPin className="w-4 h-4" /> تفعيل الموقع الجغرافي</>
-                  )}
-                </button>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-success/10 border border-success/30 text-success text-sm font-medium">
-                    <CheckCircle2 className="w-4 h-4" />
-                    تم تحديد الموقع بنجاح
-                  </div>
-                  {lat && lng && (
-                    <div className="h-48 rounded-xl overflow-hidden border border-border">
-                      <LocationMap lat={lat} lng={lng} interactive={false} />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
             {error && (
               <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>
             )}
@@ -332,8 +293,8 @@ const Register = () => {
               disabled={loading}
               className="w-full bg-accent text-accent-foreground py-3.5 rounded-xl text-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-              {loading ? 'جاري التسجيل...' : 'تسجيل'}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+              {loading ? 'جاري التسجيل...' : 'دخول سريع'}
             </button>
 
             <div className="text-center pt-2">
@@ -360,7 +321,7 @@ const Register = () => {
               <p className="text-sm text-muted-foreground mt-1">
                 تم إرسال رمز التحقق إلى
                 <br />
-                <span dir="ltr" className="text-foreground font-bold">{phone}</span>
+                <span dir="ltr" className="text-foreground font-bold">07{phone}</span>
                 <br />
                 عبر واتساب
               </p>

@@ -3,25 +3,34 @@ import { Phone, Lock, Eye, EyeOff, Loader2, KeyRound, ArrowRight, CheckCircle2 }
 import { sendResetCode, resetPassword } from '@/lib/api';
 import { useNavigate, Link } from 'react-router-dom';
 
+function toInternational(local: string): string {
+  const digits = local.replace(/\D/g, '');
+  if (digits.startsWith('07') && digits.length === 11) return '964' + digits.slice(1);
+  if (digits.startsWith('964')) return digits;
+  return '964' + digits;
+}
+
 type Step = 'phone' | 'code' | 'newPassword' | 'done';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
 
   const [step, setStep] = useState<Step>('phone');
-  const [phone, setPhone] = useState('964');
+  const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const fullPhone = toInternational('07' + phone);
+
   const handleSendCode = async () => {
-    if (!phone || phone.length < 13) return setError('يرجى إدخال رقم هاتف صحيح (964XXXXXXXXXX)');
+    if (phone.length !== 9) return setError('يرجى إدخال 9 أرقام بعد 07');
     setLoading(true);
     setError('');
     try {
-      await sendResetCode({ phone });
+      await sendResetCode({ phone: fullPhone });
       setStep('code');
     } catch (err: any) {
       setError(err.response?.data?.error || 'حدث خطأ في إرسال رمز التحقق');
@@ -36,7 +45,7 @@ const ForgotPassword = () => {
     setLoading(true);
     setError('');
     try {
-      await resetPassword({ phone, code, newPassword });
+      await resetPassword({ phone: fullPhone, code, newPassword });
       setStep('done');
     } catch (err: any) {
       setError(err.response?.data?.error || 'حدث خطأ في تغيير كلمة المرور');
@@ -70,18 +79,22 @@ const ForgotPassword = () => {
                 <Phone className="w-3.5 h-3.5 inline ml-1" />
                 رقم الهاتف
               </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, '');
-                  if (val.startsWith('964')) setPhone(val.slice(0, 13));
-                  else setPhone('964');
-                }}
-                placeholder="9647XXXXXXXXX"
-                dir="ltr"
-                className="w-full px-4 py-3 rounded-xl border border-input bg-card text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 text-left"
-              />
+              <div className="flex rounded-xl border border-input bg-card overflow-hidden focus-within:ring-2 focus-within:ring-accent/50" dir="ltr">
+                <span className="flex items-center justify-center px-3 bg-muted border-r border-input text-sm font-bold text-muted-foreground select-none min-w-[48px]">
+                  07
+                </span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={phone}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 9);
+                    setPhone(val);
+                  }}
+                  placeholder="8x xxx xxxx"
+                  className="flex-1 px-3 py-3 bg-transparent text-foreground text-sm placeholder:text-muted-foreground focus:outline-none text-left tracking-wide"
+                />
+              </div>
             </div>
 
             {error && (
@@ -112,7 +125,7 @@ const ForgotPassword = () => {
               <h2 className="text-lg font-bold text-foreground">أدخل رمز التحقق</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 تم إرسال رمز التحقق إلى واتساب على الرقم
-                <span className="font-bold text-foreground mr-1" dir="ltr">{phone}</span>
+                <span className="font-bold text-foreground mr-1" dir="ltr">07{phone}</span>
               </p>
             </div>
 

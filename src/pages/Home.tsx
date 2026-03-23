@@ -10,6 +10,7 @@ import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { playAlertSound, isUrgentSeverity } from '@/lib/alert-sound';
 import AlertCard from '@/components/citizen/AlertCard';
 import AppHeader from '@/components/citizen/AppHeader';
+import GeolocationModal, { hasBeenPrompted } from '@/components/citizen/GeolocationModal';
 import type { Alert } from '@/lib/alert-data';
 import { CATEGORIES, SEVERITY_LABELS } from '@/lib/alert-data';
 import { Link } from 'react-router-dom';
@@ -29,6 +30,7 @@ const Home = () => {
   const [prevAlertIds, setPrevAlertIds] = useState<Set<string | number>>(new Set());
   const [urgentAlert, setUrgentAlert] = useState<Alert | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'all' | 'categories'>('active');
+  const [showGeoModal, setShowGeoModal] = useState(() => !hasBeenPrompted());
 
   useLocationTracking();
 
@@ -121,6 +123,7 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
+      {showGeoModal && <GeolocationModal onClose={() => setShowGeoModal(false)} />}
       <AppHeader />
 
       <main className="container max-w-lg mx-auto px-4 py-4 space-y-4">
