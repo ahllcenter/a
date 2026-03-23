@@ -92,32 +92,6 @@ const Register = () => {
     setOtpCode('');
   };
 
-  // Shared phone input component
-  const PhoneInput = () => (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-        <Phone className="w-3.5 h-3.5 inline ml-1" />
-        رقم الهاتف
-      </label>
-      <div className="flex rounded-xl border border-input bg-card overflow-hidden focus-within:ring-2 focus-within:ring-accent/50" dir="ltr">
-        <span className="flex items-center justify-center px-3 bg-muted border-r border-input text-sm font-bold text-muted-foreground select-none min-w-[48px]">
-          07
-        </span>
-        <input
-          type="tel"
-          inputMode="numeric"
-          value={phone}
-          onChange={(e) => {
-            const val = e.target.value.replace(/\D/g, '').slice(0, 9);
-            setPhone(val);
-          }}
-          placeholder="8x xxx xxxx"
-          className="flex-1 px-3 py-3 bg-transparent text-foreground text-sm placeholder:text-muted-foreground focus:outline-none text-left tracking-wide"
-        />
-      </div>
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-background flex flex-col" dir="rtl">
       {/* Header */}
@@ -154,9 +128,32 @@ const Register = () => {
               />
             </div>
 
-            {/* Phone */}
-            <PhoneInput />
-            <p className="text-[10px] text-muted-foreground -mt-3">سيتم إرسال رمز التحقق عبر واتساب</p>
+            {/* Phone (inline — NOT a nested component) */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                <Phone className="w-3.5 h-3.5 inline ml-1" />
+                رقم الهاتف
+              </label>
+              <div className="flex rounded-xl border border-input bg-card overflow-hidden focus-within:ring-2 focus-within:ring-accent/50" dir="ltr">
+                <span className="flex items-center justify-center px-3 bg-muted border-r border-input text-sm font-bold text-muted-foreground select-none min-w-[48px]">
+                  07
+                </span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 9);
+                    setPhone(val);
+                  }}
+                  placeholder="8x xxx xxxx"
+                  className="flex-1 px-3 py-3 bg-transparent text-foreground text-sm placeholder:text-muted-foreground focus:outline-none text-left tracking-wide"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">سيتم إرسال رمز التحقق عبر واتساب</p>
+            </div>
 
             {/* City */}
             <div>
@@ -208,7 +205,30 @@ const Register = () => {
               <p className="text-sm text-muted-foreground mt-1">أدخل رقم هاتفك وسنرسل لك رمز تحقق</p>
             </div>
 
-            <PhoneInput />
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                <Phone className="w-3.5 h-3.5 inline ml-1" />
+                رقم الهاتف
+              </label>
+              <div className="flex rounded-xl border border-input bg-card overflow-hidden focus-within:ring-2 focus-within:ring-accent/50" dir="ltr">
+                <span className="flex items-center justify-center px-3 bg-muted border-r border-input text-sm font-bold text-muted-foreground select-none min-w-[48px]">
+                  07
+                </span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 9);
+                    setPhone(val);
+                  }}
+                  placeholder="8x xxx xxxx"
+                  className="flex-1 px-3 py-3 bg-transparent text-foreground text-sm placeholder:text-muted-foreground focus:outline-none text-left tracking-wide"
+                />
+              </div>
+            </div>
 
             {error && (
               <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>
@@ -256,6 +276,9 @@ const Register = () => {
             <div>
               <input
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="one-time-code"
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="أدخل رمز التحقق"
