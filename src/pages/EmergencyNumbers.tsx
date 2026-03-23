@@ -1,4 +1,4 @@
-import { Phone, PhoneCall, Zap, Building2, Droplets, Flame, ChevronLeft } from "lucide-react";
+import { Phone, PhoneCall, Zap, Building2, Droplets, ChevronLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import AppHeader from "@/components/citizen/AppHeader";
 import {
@@ -13,51 +13,54 @@ interface PhoneEntry {
   numbers: string[];
 }
 
-interface EmergencySection {
+interface ServiceSection {
   id: string;
   title: string;
   icon: React.ElementType;
   iconColor: string;
+  bgColor: string;
   borderColor: string;
   entries: PhoneEntry[];
 }
 
-const EMERGENCY_SECTIONS: EmergencySection[] = [
+const SERVICES: ServiceSection[] = [
   {
-    id: "general",
-    title: "طوارئ وخدمات عامة",
-    icon: Flame,
-    iconColor: "text-red-500",
-    borderColor: "border-red-500/30",
+    id: "municipality",
+    title: "البلدية",
+    icon: Building2,
+    iconColor: "text-emerald-500",
+    bgColor: "bg-emerald-500/10",
+    borderColor: "border-emerald-500/30",
     entries: [
-      { label: "الدفاع المدني والداخلية", numbers: ["911"] },
       { label: "بلدية الرمادي — الرقم الساخن", numbers: ["07833311136"] },
+    ],
+  },
+  {
+    id: "water",
+    title: "المياه والمجاري",
+    icon: Droplets,
+    iconColor: "text-blue-500",
+    bgColor: "bg-blue-500/10",
+    borderColor: "border-blue-500/30",
+    entries: [
       { label: "مديرية مياه الأنبار", numbers: ["07866505266"] },
     ],
   },
   {
-    id: "electricity-central",
-    title: "شكاوى كهرباء مركز الأنبار",
+    id: "electricity",
+    title: "الكهرباء",
     icon: Zap,
     iconColor: "text-amber-500",
+    bgColor: "bg-amber-500/10",
     borderColor: "border-amber-500/30",
     entries: [
       { label: "الخط الساخن المجاني", numbers: ["159"] },
-      { label: "شكاوى مقر الفرع", numbers: ["07833491694", "07833491695"] },
+      { label: "شكاوى مقر فرع مركز الأنبار", numbers: ["07833491694", "07833491695"] },
       { label: "شكاوى الرمادي المركز", numbers: ["07809257407"] },
       { label: "شكاوى غرب الرمادي", numbers: ["07864995608"] },
       { label: "شكاوى هيت", numbers: ["07809256020"] },
       { label: "شكاوى الخالدية", numbers: ["07833490610"] },
-    ],
-  },
-  {
-    id: "electricity-east",
-    title: "شكاوى كهرباء شرق الأنبار",
-    icon: Building2,
-    iconColor: "text-blue-500",
-    borderColor: "border-blue-500/30",
-    entries: [
-      { label: "شكاوى مقر الفرع", numbers: ["07835980720", "07779490030", "07509800886"] },
+      { label: "شكاوى مقر فرع شرق الأنبار", numbers: ["07835980720", "07779490030", "07509800886"] },
       { label: "شكاوى القطاع الشمالي", numbers: ["07835980690"] },
       { label: "شكاوى القطاع الجنوبي", numbers: ["07835980691"] },
       { label: "شكاوى قطاع الصقلاوية", numbers: ["07835980693"] },
@@ -99,25 +102,25 @@ const EmergencyNumbers = () => {
           </div>
         </a>
 
-        {/* Accordion Sections */}
-        <Accordion type="multiple" defaultValue={["general"]} className="space-y-3">
-          {EMERGENCY_SECTIONS.map((section, sIdx) => (
+        {/* Service Sections */}
+        <Accordion type="multiple" defaultValue={["municipality", "water", "electricity"]} className="space-y-3">
+          {SERVICES.map((service, sIdx) => (
             <AccordionItem
-              key={section.id}
-              value={section.id}
-              className={`bg-card border-2 ${section.borderColor} rounded-2xl overflow-hidden animate-fade-up stagger-${sIdx + 2}`}
+              key={service.id}
+              value={service.id}
+              className={`bg-card border-2 ${service.borderColor} rounded-2xl overflow-hidden animate-fade-up stagger-${sIdx + 2}`}
             >
               <AccordionTrigger className="px-4 py-3 hover:no-underline">
                 <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-xl bg-muted flex items-center justify-center`}>
-                    <section.icon className={`w-5 h-5 ${section.iconColor}`} />
+                  <div className={`w-9 h-9 rounded-xl ${service.bgColor} flex items-center justify-center`}>
+                    <service.icon className={`w-5 h-5 ${service.iconColor}`} />
                   </div>
-                  <span className="text-sm font-bold text-foreground">{section.title}</span>
+                  <span className="text-sm font-bold text-foreground">{service.title}</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-4 pb-4">
                 <div className="space-y-2">
-                  {section.entries.map((entry) => (
+                  {service.entries.map((entry) => (
                     <div
                       key={entry.label}
                       className="bg-muted/50 rounded-xl p-3 space-y-1.5"
