@@ -59,7 +59,7 @@ const Register = () => {
     try {
       const res = await loginUser({ phone, password });
       login(res.data.token, res.data.user);
-      navigate('/', { replace: true });
+      navigate('/home', { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.error || 'حدث خطأ في تسجيل الدخول');
     } finally {
@@ -93,7 +93,7 @@ const Register = () => {
     try {
       const res = await verifyOTP({ phone, code: otpCode });
       login(res.data.token, res.data.user);
-      navigate('/', { replace: true });
+      navigate('/home', { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.error || 'رمز التحقق غير صحيح');
     } finally {

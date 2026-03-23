@@ -9,7 +9,7 @@ const AppHeader = () => {
   const { user } = useAuth();
 
   const NAV_ITEMS = [
-    { label: "الرئيسية", path: "/", icon: Home },
+    { label: "الرئيسية", path: "/home", icon: Home },
     { label: "التنبيهات النشطة", path: "/alerts", icon: AlertTriangle },
     { label: "أرقام الطوارئ", path: "/emergency", icon: Phone },
     { label: "تواصل وبلاغات", path: "/contact", icon: MessageSquare },

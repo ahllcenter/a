@@ -2,7 +2,7 @@ import { Home, Bell, Archive, MessageSquare, Phone } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 const NAV_ITEMS = [
-  { path: "/", label: "الرئيسية", icon: Home },
+  { path: "/home", label: "الرئيسية", icon: Home },
   { path: "/alerts", label: "التنبيهات", icon: Bell },
   { path: "/emergency", label: "طوارئ", icon: Phone },
   { path: "/contact", label: "تواصل", icon: MessageSquare },

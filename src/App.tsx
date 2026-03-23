@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import BottomNav from "@/components/citizen/BottomNav";
 import Home from "./pages/Home";
+import Index from "./pages/Index";
 import Register from "./pages/Register";
 import Alerts from "./pages/Alerts";
 import Archive from "./pages/Archive";
@@ -41,12 +42,13 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  return isAuthenticated ? <Navigate to="/" replace /> : <>{children}</>;
+  return isAuthenticated ? <Navigate to="/home" replace /> : <>{children}</>;
 }
 
 const AppRoutes = () => (
   <Routes>
-    <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+    <Route path="/" element={<Index />} />
+    <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
     <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
     <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
     <Route path="/archive" element={<ProtectedRoute><Archive /></ProtectedRoute>} />

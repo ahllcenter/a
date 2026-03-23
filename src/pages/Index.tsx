@@ -1,5 +1,6 @@
 import AppHeader from "@/components/citizen/AppHeader";
-import { Bell, ChevronLeft, Phone, Shield, MapPin, Zap, Radio, Globe, Target, Users, ArrowLeft } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Bell, ChevronLeft, Phone, Shield, MapPin, Zap, Radio, Globe, Target, Users, ArrowLeft, LayoutDashboard } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const FEATURES = [
@@ -18,6 +19,8 @@ const CITIES = [
 ];
 
 const Index = () => {
+  const { isAuthenticated } = useAuth();
+
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <AppHeader />
@@ -39,13 +42,23 @@ const Index = () => {
             منصة إنذار مبكر ذكية لحماية مواطني محافظة الأنبار — تنبيهات فورية عن الطوارئ والكوارث مباشرة على هاتفك
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-            <Link
-              to="/register"
-              className="inline-flex items-center justify-center gap-2 bg-accent text-accent-foreground px-8 py-3.5 rounded-xl text-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all shadow-lg"
-            >
-              <Users className="w-4 h-4" />
-              سجّل الآن — مجاناً
-            </Link>
+            {isAuthenticated ? (
+              <Link
+                to="/home"
+                className="inline-flex items-center justify-center gap-2 bg-accent text-accent-foreground px-8 py-3.5 rounded-xl text-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all shadow-lg"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                لوحة التنبيهات
+              </Link>
+            ) : (
+              <Link
+                to="/register"
+                className="inline-flex items-center justify-center gap-2 bg-accent text-accent-foreground px-8 py-3.5 rounded-xl text-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all shadow-lg"
+              >
+                <Users className="w-4 h-4" />
+                سجّل الآن — مجاناً
+              </Link>
+            )}
             <Link
               to="/emergency"
               className="inline-flex items-center justify-center gap-2 bg-red-600 text-white px-6 py-3.5 rounded-xl text-sm font-bold hover:bg-red-700 active:scale-[0.98] transition-all"
@@ -129,12 +142,22 @@ const Index = () => {
             سجّل مجاناً لتلقي تنبيهات فورية عن حالات الطوارئ في منطقتك. التسجيل يستغرق أقل من دقيقة.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-1">
-            <Link
-              to="/register"
-              className="inline-flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-xl text-sm font-bold hover:opacity-90 active:scale-95 transition-all"
-            >
-              إنشاء حساب مجاني
-            </Link>
+            {isAuthenticated ? (
+              <Link
+                to="/home"
+                className="inline-flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-xl text-sm font-bold hover:opacity-90 active:scale-95 transition-all"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                لوحة التنبيهات
+              </Link>
+            ) : (
+              <Link
+                to="/register"
+                className="inline-flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-xl text-sm font-bold hover:opacity-90 active:scale-95 transition-all"
+              >
+                إنشاء حساب مجاني
+              </Link>
+            )}
             <Link
               to="/install"
               className="inline-flex items-center justify-center gap-2 bg-primary-foreground/10 text-primary-foreground px-6 py-3 rounded-xl text-sm font-bold hover:bg-primary-foreground/20 transition-all"
