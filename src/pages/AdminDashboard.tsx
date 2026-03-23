@@ -5,7 +5,7 @@ import {
   Plus, MapPin, Globe, Building2, Megaphone, Trash2, Loader2,
   LayoutDashboard, List, UserCog, Info, BookOpen, MessageSquare,
   AlertTriangle, Mail, Eye, CheckCircle2, XCircle, Reply,
-  Map, Activity, Clock, TrendingUp
+  Map, Activity, Clock, TrendingUp, UserPlus
 } from "lucide-react";
 import {
   CATEGORIES, SEVERITY_LABELS,
@@ -16,7 +16,8 @@ import {
   adminGetAllAlerts, adminCreateAlert, adminDeleteAlert,
   adminGetInquiries, adminReplyInquiry,
   adminGetReports, adminUpdateReportStatus,
-  adminSendMessage, adminGetMessages
+  adminSendMessage, adminGetMessages,
+  adminDeleteUser, adminCreateUser
 } from "@/lib/api";
 import AlertCard from "@/components/citizen/AlertCard";
 import LocationMap from "@/components/citizen/LocationMap";
@@ -80,6 +81,14 @@ const AdminDashboard = () => {
   const [msgLoading, setMsgLoading] = useState(false);
   const [msgResult, setMsgResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
+  // Add user form
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserPhone, setNewUserPhone] = useState('');
+  const [newUserCity, setNewUserCity] = useState('');
+  const [addUserLoading, setAddUserLoading] = useState(false);
+  const [addUserResult, setAddUserResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
   const categoryEntries = Object.entries(CATEGORIES) as [AlertCategory, (typeof CATEGORIES)[AlertCategory]][];
   const severityEntries = Object.entries(SEVERITY_LABELS) as [AlertSeverity, string][];
 
@@ -111,6 +120,39 @@ const AdminDashboard = () => {
   const handleLogout = () => {
     localStorage.removeItem('anbar_admin_token');
     navigate('/admin/login', { replace: true });
+  };
+
+  const handleDeleteUser = async (id: number, name: string) => {
+    if (!confirm(`هل أنت متأكد من حذف المستخدم "${name}"؟`)) return;
+    try {
+      await adminDeleteUser(id);
+      setUsers(prev => prev.filter(u => u.id !== id));
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'فشل حذف المستخدم');
+    }
+  };
+
+  const handleAddUser = async () => {
+    if (!newUserName.trim() || !newUserPhone || !newUserCity) {
+      return setAddUserResult({ ok: false, msg: 'يرجى ملء جميع الحقول' });
+    }
+    if (newUserPhone.length !== 9) {
+      return setAddUserResult({ ok: false, msg: 'يرجى إدخال 9 أرقام بعد 07' });
+    }
+    const fullPhone = '964' + '7' + newUserPhone;
+    setAddUserLoading(true);
+    setAddUserResult(null);
+    try {
+      await adminCreateUser({ name: newUserName.trim(), phone: fullPhone, city: newUserCity });
+      setAddUserResult({ ok: true, msg: 'تم إضافة المستخدم بنجاح' });
+      setNewUserName(''); setNewUserPhone(''); setNewUserCity('');
+      setShowAddUser(false);
+      fetchData();
+    } catch (err: any) {
+      setAddUserResult({ ok: false, msg: err.response?.data?.error || 'فشل إضافة المستخدم' });
+    } finally {
+      setAddUserLoading(false);
+    }
   };
 
   const handleSend = async () => {
@@ -679,7 +721,72 @@ const AdminDashboard = () => {
           {/* ========== USERS SECTION ========== */}
           {section === 'users' && (
             <section className="space-y-4">
-              <h2 className="text-base font-bold text-foreground">المستخدمون المسجلون ({users.length})</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-foreground">المستخدمون المسجلون ({users.length})</h2>
+                <button
+                  onClick={() => { setShowAddUser(!showAddUser); setAddUserResult(null); }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-foreground text-xs font-bold hover:opacity-90 transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  إضافة مستخدم
+                </button>
+              </div>
+
+              {/* Add user form */}
+              {showAddUser && (
+                <div className="bg-card border border-accent/30 rounded-xl p-4 space-y-3">
+                  <h3 className="text-sm font-bold text-foreground">إضافة مستخدم جديد</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <input
+                      type="text"
+                      value={newUserName}
+                      onChange={(e) => setNewUserName(e.target.value)}
+                      placeholder="الاسم الكامل"
+                      className="px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    />
+                    <div className="flex rounded-lg border border-input bg-background overflow-hidden focus-within:ring-2 focus-within:ring-accent/50" dir="ltr">
+                      <span className="flex items-center justify-center px-2 bg-muted border-r border-input text-xs font-bold text-muted-foreground select-none">07</span>
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        value={newUserPhone}
+                        onChange={(e) => setNewUserPhone(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                        placeholder="8xxxxxxxx"
+                        className="flex-1 px-2 py-2 bg-transparent text-foreground text-sm placeholder:text-muted-foreground focus:outline-none text-left"
+                      />
+                    </div>
+                    <select
+                      value={newUserCity}
+                      onChange={(e) => setNewUserCity(e.target.value)}
+                      className="px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    >
+                      <option value="">اختر المدينة...</option>
+                      {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  {addUserResult && (
+                    <p className={`text-xs px-3 py-2 rounded-lg ${addUserResult.ok ? 'bg-emerald-500/10 text-emerald-500' : 'bg-destructive/10 text-destructive'}`}>
+                      {addUserResult.msg}
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleAddUser}
+                      disabled={addUserLoading}
+                      className="px-4 py-2 rounded-lg bg-accent text-accent-foreground text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      {addUserLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+                      {addUserLoading ? 'جاري الإضافة...' : 'إضافة'}
+                    </button>
+                    <button
+                      onClick={() => setShowAddUser(false)}
+                      className="px-4 py-2 rounded-lg bg-muted text-muted-foreground text-xs font-bold hover:bg-muted/80"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Users map in users section */}
               {users.some(u => u.lat && u.lng) && (
@@ -734,18 +841,27 @@ const AdminDashboard = () => {
                             {u.last_seen ? new Date(u.last_seen).toLocaleString('ar-IQ') : '—'}
                           </td>
                           <td className="px-4 py-2.5">
-                            <button
-                              onClick={() => {
-                                setSection('messages');
-                                setMsgTargetType('user');
-                                setMsgTargetUserId(u.id);
-                                setMsgTitle(`رسالة إلى ${u.name}`);
-                              }}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-accent/10 text-accent text-[11px] font-bold hover:bg-accent/20 transition-colors"
-                            >
-                              <Mail className="w-3 h-3" />
-                              مراسلة
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => {
+                                  setSection('messages');
+                                  setMsgTargetType('user');
+                                  setMsgTargetUserId(u.id);
+                                  setMsgTitle(`رسالة إلى ${u.name}`);
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-accent/10 text-accent text-[11px] font-bold hover:bg-accent/20 transition-colors"
+                              >
+                                <Mail className="w-3 h-3" />
+                                مراسلة
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(u.id, u.name)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/10 text-destructive text-[11px] font-bold hover:bg-destructive/20 transition-colors"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                حذف
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

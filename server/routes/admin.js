@@ -127,4 +127,65 @@ router.get('/users', requireAdmin, async (req, res) => {
   }
 });
 
+// DELETE /api/admin/users/:id — Delete a user
+router.delete('/users/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'معرّف غير صالح' });
+
+    const { data, error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', id)
+      .select('id')
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'المستخدم غير موجود' });
+
+    res.json({ message: 'تم حذف المستخدم بنجاح' });
+  } catch (err) {
+    console.error('Delete user error:', err);
+    res.status(500).json({ error: 'حدث خطأ في حذف المستخدم' });
+  }
+});
+
+// POST /api/admin/users — Create a new user (admin-provisioned)
+router.post('/users', requireAdmin, async (req, res) => {
+  try {
+    const { name, phone, city } = req.body;
+    if (!name || !phone || !city) {
+      return res.status(400).json({ error: 'الاسم ورقم الهاتف والمدينة مطلوبة' });
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (!/^964\d{10}$/.test(cleanPhone)) {
+      return res.status(400).json({ error: 'رقم الهاتف يجب أن يبدأ بـ 964 ويتكون من 13 رقم' });
+    }
+
+    const { data: existing } = await supabase
+      .from('users')
+      .select('id')
+      .eq('phone', cleanPhone)
+      .maybeSingle();
+
+    if (existing) {
+      return res.status(400).json({ error: 'هذا الرقم مسجل بالفعل' });
+    }
+
+    const { data: user, error: insertErr } = await supabase
+      .from('users')
+      .insert({ name, phone: cleanPhone, city, is_verified: true, last_seen: new Date().toISOString() })
+      .select('id, name, phone, city')
+      .single();
+
+    if (insertErr) throw insertErr;
+
+    res.json({ message: 'تم إنشاء المستخدم بنجاح', user });
+  } catch (err) {
+    console.error('Create user error:', err);
+    res.status(500).json({ error: 'حدث خطأ في إنشاء المستخدم' });
+  }
+});
+
 module.exports = router;

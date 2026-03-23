@@ -194,4 +194,19 @@ export const adminGetMessages = () => {
   });
 };
 
+// Admin: User management
+export const adminDeleteUser = (id: number) => {
+  const adminToken = localStorage.getItem('anbar_admin_token');
+  return api.delete(`/admin/users/${id}`, {
+    headers: { Authorization: `Bearer ${adminToken}` }
+  });
+};
+
+export const adminCreateUser = (data: { name: string; phone: string; city: string }) => {
+  const adminToken = localStorage.getItem('anbar_admin_token');
+  return api.post('/admin/users', data, {
+    headers: { Authorization: `Bearer ${adminToken}` }
+  });
+};
+
 export default api;
