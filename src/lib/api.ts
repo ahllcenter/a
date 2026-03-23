@@ -29,9 +29,6 @@ api.interceptors.response.use(
 export const registerUser = (data: { name: string; phone: string; city: string }) =>
   api.post('/auth/register', data);
 
-export const verifyOTP = (data: { phone: string; code: string }) =>
-  api.post('/auth/verify-otp', data);
-
 export const loginUser = (data: { phone: string }) =>
   api.post('/auth/login', data);
 

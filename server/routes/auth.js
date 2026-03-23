@@ -1,11 +1,10 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const axios = require('axios');
 const { supabase } = require('../db');
 
 const router = express.Router();
 
-// POST /api/auth/register — Register new citizen + send OTP (passwordless)
+// POST /api/auth/register — Instant registration, no OTP (zero-friction emergency onboarding)
 router.post('/register', async (req, res) => {
   try {
     const { name, phone, city } = req.body;
@@ -19,94 +18,40 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'رقم الهاتف يجب أن يبدأ بـ 964 ويتكون من 13 رقم' });
     }
 
-    // Check if user already exists and is verified
+    // Check if user already exists
     const { data: existing } = await supabase
       .from('users')
-      .select('id, is_verified')
+      .select('id')
       .eq('phone', cleanPhone)
       .maybeSingle();
 
-    if (existing && existing.is_verified) {
+    if (existing) {
       return res.status(400).json({ error: 'هذا الرقم مسجل بالفعل. استخدم تسجيل الدخول' });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = Date.now() + 5 * 60 * 1000;
-
-    if (existing) {
-      // Update unverified user
-      await supabase
-        .from('users')
-        .update({ name, city, otp_code: otp, otp_expires: otpExpires })
-        .eq('phone', cleanPhone);
-    } else {
-      // Create new user
-      await supabase
-        .from('users')
-        .insert({ name, phone: cleanPhone, city, otp_code: otp, otp_expires: otpExpires });
-    }
-
-    try {
-      await axios.post('https://api.otpiq.com/api/sms', {
-        phoneNumber: cleanPhone, smsType: 'verification',
-        provider: 'whatsapp-sms', verificationCode: otp
-      }, { headers: { 'Authorization': `Bearer ${process.env.OTPIQ_API_KEY}`, 'Content-Type': 'application/json' } });
-    } catch (smsErr) { console.error('OTPiq error:', smsErr.message); }
-
-    res.json({ message: 'تم إرسال رمز التحقق عبر واتساب' });
-  } catch (err) {
-    console.error('Register error:', err);
-    res.status(500).json({ error: 'حدث خطأ في التسجيل' });
-  }
-});
-
-// POST /api/auth/verify-otp — Verify OTP, issue long-lived JWT (365 days)
-router.post('/verify-otp', async (req, res) => {
-  try {
-    const { phone, code } = req.body;
-    if (!phone || !code) {
-      return res.status(400).json({ error: 'رقم الهاتف ورمز التحقق مطلوبان' });
-    }
-
-    const cleanPhone = phone.replace(/\D/g, '');
-    const { data: user } = await supabase
+    // Create user — verified immediately, no OTP
+    const { data: user, error: insertErr } = await supabase
       .from('users')
-      .select('*')
-      .eq('phone', cleanPhone)
-      .maybeSingle();
+      .insert({ name, phone: cleanPhone, city, is_verified: true, last_seen: new Date().toISOString() })
+      .select('id, name, phone, city, lat, lng, is_admin')
+      .single();
 
-    if (!user) return res.status(404).json({ error: 'المستخدم غير موجود' });
-    if (user.otp_code !== code) return res.status(400).json({ error: 'رمز التحقق غير صحيح' });
-    if (Date.now() > user.otp_expires) return res.status(400).json({ error: 'رمز التحقق منتهي الصلاحية' });
+    if (insertErr) throw insertErr;
 
-    // Mark as verified, clear OTP
-    await supabase
-      .from('users')
-      .update({ is_verified: true, otp_code: null, otp_expires: null, last_seen: new Date().toISOString() })
-      .eq('phone', cleanPhone);
-
-    // Issue long-lived token (1 year) for persistent session
     const token = jwt.sign(
       { id: user.id, phone: user.phone },
       process.env.JWT_SECRET,
       { expiresIn: '365d' }
     );
 
-    res.json({
-      token,
-      user: {
-        id: user.id, name: user.name, phone: user.phone,
-        city: user.city, lat: user.lat, lng: user.lng,
-        is_admin: user.is_admin
-      }
-    });
+    res.json({ token, user });
   } catch (err) {
-    console.error('Verify OTP error:', err);
-    res.status(500).json({ error: 'حدث خطأ في التحقق' });
+    console.error('Register error:', err);
+    res.status(500).json({ error: 'حدث خطأ في التسجيل' });
   }
 });
 
-// POST /api/auth/login — OTP-based login for existing users (passwordless)
+// POST /api/auth/login — Instant login for existing users, no OTP
 router.post('/login', async (req, res) => {
   try {
     const { phone } = req.body;
@@ -121,30 +66,27 @@ router.post('/login', async (req, res) => {
 
     const { data: user } = await supabase
       .from('users')
-      .select('id, is_verified')
+      .select('id, name, phone, city, lat, lng, is_admin')
       .eq('phone', cleanPhone)
       .maybeSingle();
 
-    if (!user || !user.is_verified) {
+    if (!user) {
       return res.status(404).json({ error: 'رقم الهاتف غير مسجل. يرجى إنشاء حساب أولاً' });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = Date.now() + 5 * 60 * 1000;
-
+    // Update last_seen
     await supabase
       .from('users')
-      .update({ otp_code: otp, otp_expires: otpExpires })
+      .update({ last_seen: new Date().toISOString() })
       .eq('phone', cleanPhone);
 
-    try {
-      await axios.post('https://api.otpiq.com/api/sms', {
-        phoneNumber: cleanPhone, smsType: 'verification',
-        provider: 'whatsapp-sms', verificationCode: otp
-      }, { headers: { 'Authorization': `Bearer ${process.env.OTPIQ_API_KEY}`, 'Content-Type': 'application/json' } });
-    } catch (smsErr) { console.error('OTPiq error:', smsErr.message); }
+    const token = jwt.sign(
+      { id: user.id, phone: user.phone },
+      process.env.JWT_SECRET,
+      { expiresIn: '365d' }
+    );
 
-    res.json({ message: 'تم إرسال رمز التحقق عبر واتساب' });
+    res.json({ token, user });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'حدث خطأ في تسجيل الدخول' });

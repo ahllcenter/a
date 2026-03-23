@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Phone, User, MapPin, Shield, Loader2, Lock, LogIn, UserPlus, Zap } from 'lucide-react';
-import { registerUser, verifyOTP, loginUser } from '@/lib/api';
+import { registerUser, loginUser } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 
@@ -20,7 +20,7 @@ function toInternational(local: string): string {
   return '964' + digits;
 }
 
-type Mode = 'login' | 'register' | 'otp';
+type Mode = 'login' | 'register';
 
 const Register = () => {
   const { login } = useAuth();
@@ -30,21 +30,21 @@ const Register = () => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
-  const [otpCode, setOtpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const fullPhone = toInternational('07' + phone);
 
-  // Login: send OTP to existing user (passwordless)
+  // Login: instant — find existing user, get JWT immediately
   const handleLogin = async () => {
     if (phone.length !== 9) return setError('يرجى إدخال 9 أرقام بعد 07');
 
     setLoading(true);
     setError('');
     try {
-      await loginUser({ phone: fullPhone });
-      setMode('otp');
+      const res = await loginUser({ phone: fullPhone });
+      login(res.data.token, res.data.user);
+      navigate('/home', { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.error || 'حدث خطأ في تسجيل الدخول');
     } finally {
@@ -52,7 +52,7 @@ const Register = () => {
     }
   };
 
-  // Register: create new user + send OTP (passwordless)
+  // Register: instant — create user, get JWT immediately
   const handleRegister = async () => {
     if (!name.trim()) return setError('يرجى إدخال الاسم');
     if (phone.length !== 9) return setError('يرجى إدخال 9 أرقام بعد 07');
@@ -61,26 +61,11 @@ const Register = () => {
     setLoading(true);
     setError('');
     try {
-      await registerUser({ name: name.trim(), phone: fullPhone, city });
-      setMode('otp');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'حدث خطأ في التسجيل');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Verify OTP → get long-lived token → permanent session
-  const handleVerify = async () => {
-    if (!otpCode || otpCode.length < 4) return setError('يرجى إدخال رمز التحقق');
-    setLoading(true);
-    setError('');
-    try {
-      const res = await verifyOTP({ phone: fullPhone, code: otpCode });
+      const res = await registerUser({ name: name.trim(), phone: fullPhone, city });
       login(res.data.token, res.data.user);
       navigate('/home', { replace: true });
     } catch (err: any) {
-      setError(err.response?.data?.error || 'رمز التحقق غير صحيح');
+      setError(err.response?.data?.error || 'حدث خطأ في التسجيل');
     } finally {
       setLoading(false);
     }
@@ -89,7 +74,6 @@ const Register = () => {
   const switchMode = (newMode: Mode) => {
     setMode(newMode);
     setError('');
-    setOtpCode('');
   };
 
   return (
@@ -152,7 +136,7 @@ const Register = () => {
                   className="flex-1 px-3 py-3 bg-transparent text-foreground text-sm placeholder:text-muted-foreground focus:outline-none text-left tracking-wide"
                 />
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">سيتم إرسال رمز التحقق عبر واتساب</p>
+              <p className="text-[10px] text-muted-foreground mt-1">أدخل رقم هاتفك للدخول الفوري</p>
             </div>
 
             {/* City */}
@@ -202,7 +186,7 @@ const Register = () => {
           <div className="space-y-5 animate-fade-up">
             <div className="text-center mb-2">
               <h2 className="text-lg font-bold text-foreground">تسجيل الدخول</h2>
-              <p className="text-sm text-muted-foreground mt-1">أدخل رقم هاتفك وسنرسل لك رمز تحقق</p>
+              <p className="text-sm text-muted-foreground mt-1">أدخل رقم هاتفك للدخول الفوري</p>
             </div>
 
             <div>
@@ -240,7 +224,7 @@ const Register = () => {
               className="w-full bg-accent text-accent-foreground py-3.5 rounded-xl text-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
-              {loading ? 'جاري الإرسال...' : 'إرسال رمز التحقق'}
+              {loading ? 'جاري الدخول...' : 'تسجيل الدخول'}
             </button>
 
             <div className="text-center pt-2">
@@ -256,59 +240,6 @@ const Register = () => {
           </div>
         )}
 
-        {/* ===== OTP VERIFICATION MODE ===== */}
-        {mode === 'otp' && (
-          <div className="space-y-5 animate-fade-up">
-            <div className="text-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-accent/10 mx-auto flex items-center justify-center mb-3">
-                <Phone className="w-8 h-8 text-accent" />
-              </div>
-              <h2 className="text-lg font-bold text-foreground">رمز التحقق</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                تم إرسال رمز التحقق إلى
-                <br />
-                <span dir="ltr" className="text-foreground font-bold">07{phone}</span>
-                <br />
-                عبر واتساب
-              </p>
-            </div>
-
-            <div>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                autoComplete="one-time-code"
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="أدخل رمز التحقق"
-                dir="ltr"
-                maxLength={6}
-                className="w-full px-4 py-4 rounded-xl border border-input bg-card text-foreground text-2xl text-center font-bold tracking-[0.5em] placeholder:text-muted-foreground placeholder:text-base placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-accent/50"
-              />
-            </div>
-
-            {error && (
-              <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>
-            )}
-
-            <button
-              onClick={handleVerify}
-              disabled={loading}
-              className="w-full bg-accent text-accent-foreground py-3.5 rounded-xl text-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {loading ? 'جاري التحقق...' : 'تأكيد'}
-            </button>
-
-            <button
-              onClick={() => switchMode('register')}
-              className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              العودة للتسجيل
-            </button>
-          </div>
-        )}
       </main>
 
       {/* رابط تسجيل دخول الإدارة */}
