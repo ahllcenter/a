@@ -7,7 +7,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { getAlerts, getAllAlerts } from '@/lib/api';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
-import { playAlertSound, isUrgentSeverity, unlockAudio } from '@/lib/alert-sound';
+import { playAlertSound, isUrgentSeverity, unlockAudio, requestNotificationPermission, sendNotification, isNotificationSupported } from '@/lib/alert-sound';
 import AlertCard from '@/components/citizen/AlertCard';
 import AppHeader from '@/components/citizen/AppHeader';
 import GeolocationModal, { hasBeenPrompted } from '@/components/citizen/GeolocationModal';
@@ -84,16 +84,13 @@ const Home = () => {
             playAlertSound(sev);
           }
           setUrgentAlert(newUrgent);
-          // Send browser notification for background visibility
-          if (Notification.permission === 'granted') {
-            try {
-              new Notification(newUrgent.title, {
-                body: newUrgent.description || 'تنبيه عاجل من منارة الأنبار',
-                icon: '/icon-192.png',
-                tag: `alert-${newUrgent.id}`,
-              });
-            } catch { /* ignore */ }
-          }
+          // Send browser notification for background visibility (safe — no-op if unsupported)
+          sendNotification(
+            newUrgent.title,
+            newUrgent.description || 'تنبيه عاجل من منارة الأنبار',
+            '/icon-192.png',
+            `alert-${newUrgent.id}`
+          );
         }
       }
       setPrevAlertIds(new Set(newAlerts.map((a: Alert) => a.id)));
@@ -132,11 +129,7 @@ const Home = () => {
   useEffect(() => {
     const handleInteraction = () => {
       unlockAudio();
-      if (Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
-      window.removeEventListener('click', handleInteraction);
-      window.removeEventListener('touchstart', handleInteraction);
+      requestNotificationPermission();
     };
     window.addEventListener('click', handleInteraction, { once: true });
     window.addEventListener('touchstart', handleInteraction, { once: true });
@@ -206,6 +199,13 @@ const Home = () => {
             </div>
             <button onClick={toggleSound} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors" title={soundEnabled ? 'كتم الصوت' : 'تفعيل الصوت'}>
               {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              onClick={() => { unlockAudio(); playAlertSound('high'); }}
+              className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+              title="اختبار الصوت"
+            >
+              <Bell className="w-3.5 h-3.5" />
             </button>
             <button onClick={logout} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors" title="تسجيل خروج">
               <LogOut className="w-3.5 h-3.5" />

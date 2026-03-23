@@ -1,5 +1,25 @@
 # سجل التغييرات – منارة الأنبار العاجلة
 
+## [2.0.1] – 2026-03-24
+
+### إصلاح حرج — صوت التنبيه + توافق iOS/In-App Browsers
+
+#### Bug 1: ReferenceError: Can't find variable: Notification
+- **السبب**: استخدام `Notification` API بدون فحص التوفر — يتسبب بانهيار التطبيق في iOS Safari و متصفحات التطبيقات الداخلية (Facebook/Telegram webviews) حيث الـ API غير متوفر
+- **الحل**: تغليف جميع استدعاءات `Notification` بفحص `'Notification' in window && 'serviceWorker' in navigator`
+- **دوال آمنة جديدة**: `isNotificationSupported()`, `requestNotificationPermission()`, `sendNotification()` — في `alert-sound.ts`
+- **Fallback**: إذا غير مدعوم، يظهر بانر "أضف للشاشة الرئيسية" ويعتمد على overlay التنبيه داخل التطبيق
+
+#### Bug 2: صوت التنبيه لا يعمل على الموبايل
+- **السبب**: Web Audio API (oscillator) لا يعمل بشكل موثوق على أغلب الهواتف — خاصة بدون تفاعل مستخدم مباشر
+- **الحل**: استراتيجية صوت مزدوجة:
+  1. **HTML5 Audio (أساسي)**: ملف صوت حقيقي `alert-sound.wav` (264KB) — صفارة إنذار 3 ثوانٍ (1000Hz↔700Hz)
+  2. **Web Audio API (احتياطي)**: إذا فشل HTML5 Audio (مثلاً بسبب قيود المتصفح)، يتم التراجع لـ oscillator
+  3. **Vibration API**: يعمل حتى في الوضع الصامت على أندرويد
+- **فتح القفل الصوتي**: `unlockAudio()` يتم عند أول لمسة/نقرة — يشغّل ويوقف الملف الصوتي لفتح قفل iOS Safari
+- **زر اختبار الصوت**: أيقونة الجرس 🔔 بجانب زر كتم الصوت — يتيح للمستخدم التأكد من عمل الصوت
+- **PWA Precache**: الملف الصوتي مُضمّن في الـ Service Worker cache للعمل بدون إنترنت
+
 ## [2.0.0] – 2026-03-23
 
 ### ترقية لوحة الإدارة – خريطة تفاعلية + فلتر مدن + إدارة المدراء
