@@ -185,15 +185,22 @@ const Register = () => {
               {loading ? 'جاري الدخول...' : 'دخول'}
             </button>
 
-            <div className="text-center pt-2">
-              <p className="text-sm text-muted-foreground">ليس لديك حساب؟</p>
-              <button
-                onClick={() => switchMode('register')}
-                className="text-sm text-accent font-bold hover:underline mt-1 inline-flex items-center gap-1"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                إنشاء حساب جديد
-              </button>
+            <div className="text-center pt-2 space-y-2">
+              <div>
+                <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-accent transition-colors">
+                  نسيت كلمة المرور؟
+                </Link>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">ليس لديك حساب؟</p>
+                <button
+                  onClick={() => switchMode('register')}
+                  className="text-sm text-accent font-bold hover:underline mt-1 inline-flex items-center gap-1"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  إنشاء حساب جديد
+                </button>
+              </div>
             </div>
           </div>
         )}
