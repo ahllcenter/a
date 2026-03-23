@@ -1,4 +1,4 @@
-import { Bell, Menu, X, Home, AlertTriangle, Archive, Download, Settings, Info, BookOpen, MessageSquare } from "lucide-react";
+import { Bell, Menu, X, Home, AlertTriangle, Archive, Download, Settings, Info, BookOpen, MessageSquare, Phone } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +11,7 @@ const AppHeader = () => {
   const NAV_ITEMS = [
     { label: "الرئيسية", path: "/", icon: Home },
     { label: "التنبيهات النشطة", path: "/alerts", icon: AlertTriangle },
+    { label: "أرقام الطوارئ", path: "/emergency", icon: Phone },
     { label: "تواصل وبلاغات", path: "/contact", icon: MessageSquare },
     { label: "الأرشيف", path: "/archive", icon: Archive },
     { label: "تثبيت التطبيق", path: "/install", icon: Download },

@@ -4,7 +4,8 @@ import {
   Bell, Users, Send, BarChart3, ChevronLeft, LogOut,
   Plus, MapPin, Globe, Building2, Megaphone, Trash2, Loader2,
   LayoutDashboard, List, UserCog, Info, BookOpen, MessageSquare,
-  AlertTriangle, Mail, Eye, CheckCircle2, XCircle, Reply
+  AlertTriangle, Mail, Eye, CheckCircle2, XCircle, Reply,
+  Map, Activity, Clock, TrendingUp
 } from "lucide-react";
 import {
   CATEGORIES, SEVERITY_LABELS,
@@ -308,11 +309,12 @@ const AdminDashboard = () => {
           {/* ========== STATS SECTION ========== */}
           {section === 'stats' && (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
                   { label: "المستخدمون", value: stats.totalUsers, icon: Users, color: 'text-blue-400' },
                   { label: "إجمالي التنبيهات", value: stats.totalAlerts, icon: Send, color: 'text-amber-400' },
                   { label: "التنبيهات النشطة", value: stats.activeAlerts, icon: Bell, color: 'text-emerald-400' },
+                  { label: "نشط اليوم", value: users.filter(u => u.last_seen && (Date.now() - new Date(u.last_seen).getTime()) < 86400000).length, icon: Activity, color: 'text-purple-400' },
                 ].map(({ label, value, icon: Icon, color }) => (
                   <div key={label} className="bg-card border border-border rounded-xl p-5">
                     <div className="flex items-center gap-3">
@@ -328,16 +330,113 @@ const AdminDashboard = () => {
                 ))}
               </div>
 
+              {/* User activity stats */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {(() => {
+                  const now = Date.now();
+                  const activeToday = users.filter(u => u.last_seen && (now - new Date(u.last_seen).getTime()) < 86400000).length;
+                  const activeWeek = users.filter(u => u.last_seen && (now - new Date(u.last_seen).getTime()) < 604800000).length;
+                  const newThisWeek = users.filter(u => u.created_at && (now - new Date(u.created_at).getTime()) < 604800000).length;
+                  return [
+                    { label: "نشط آخر 24 ساعة", value: activeToday, total: users.length, color: 'bg-emerald-500' },
+                    { label: "نشط آخر 7 أيام", value: activeWeek, total: users.length, color: 'bg-blue-500' },
+                    { label: "مسجل هذا الأسبوع", value: newThisWeek, total: users.length, color: 'bg-purple-500' },
+                  ].map(({ label, value, total, color }) => (
+                    <div key={label} className="bg-card border border-border rounded-xl p-4">
+                      <p className="text-xs text-muted-foreground mb-2">{label}</p>
+                      <div className="flex items-end gap-2">
+                        <span className="text-xl font-extrabold text-foreground">{value}</span>
+                        <span className="text-xs text-muted-foreground mb-0.5">/ {total}</span>
+                      </div>
+                      <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${color}`} style={{ width: `${total > 0 ? (value / total * 100) : 0}%` }} />
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+
               {/* City distribution */}
               {stats.cityCounts.length > 0 && (
                 <div className="bg-card border border-border rounded-xl p-5">
-                  <h3 className="text-sm font-bold text-foreground mb-3">توزيع المستخدمين حسب المدينة</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {stats.cityCounts.map(({ city, count }) => (
-                      <span key={city} className="px-3 py-1.5 rounded-full bg-accent/10 text-accent text-xs font-bold border border-accent/20">
-                        {city}: {count}
-                      </span>
-                    ))}
+                  <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-accent" />
+                    توزيع المستخدمين حسب المدينة
+                  </h3>
+                  <div className="space-y-2">
+                    {stats.cityCounts.map(({ city, count }) => {
+                      const pct = stats.totalUsers > 0 ? (count / stats.totalUsers * 100) : 0;
+                      return (
+                        <div key={city} className="flex items-center gap-3">
+                          <span className="text-xs text-foreground font-medium w-28 shrink-0 text-right">{city}</span>
+                          <div className="flex-1 h-5 bg-muted rounded-full overflow-hidden relative">
+                            <div className="h-full bg-accent/60 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-foreground">{count}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground w-10 text-left">{pct.toFixed(0)}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Users Map */}
+              {users.some(u => u.lat && u.lng) && (
+                <div className="bg-card border border-border rounded-xl p-5">
+                  <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                    <Map className="w-4 h-4 text-accent" />
+                    خريطة المستخدمين المسجلين
+                  </h3>
+                  <div className="h-80 rounded-xl overflow-hidden border border-border">
+                    <LocationMap
+                      lat={33.42}
+                      lng={43.31}
+                      markers={users.filter(u => u.lat && u.lng).map(u => ({ lat: u.lat, lng: u.lng, name: u.name, city: u.city }))}
+                      className="w-full h-full"
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-2 text-center">
+                    {users.filter(u => u.lat && u.lng).length} مستخدم على الخريطة — اضغط على النقطة لعرض التفاصيل
+                  </p>
+                </div>
+              )}
+
+              {/* Most active users */}
+              {users.length > 0 && (
+                <div className="bg-card border border-border rounded-xl p-5">
+                  <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-accent" />
+                    أحدث المستخدمين النشطين
+                  </h3>
+                  <div className="space-y-2">
+                    {[...users]
+                      .filter(u => u.last_seen)
+                      .sort((a, b) => new Date(b.last_seen).getTime() - new Date(a.last_seen).getTime())
+                      .slice(0, 10)
+                      .map((u, i) => {
+                        const ago = Date.now() - new Date(u.last_seen).getTime();
+                        const isOnline = ago < 300000; // 5 min
+                        const timeLabel = ago < 60000 ? 'الآن' : ago < 3600000 ? `${Math.floor(ago/60000)} دقيقة` : ago < 86400000 ? `${Math.floor(ago/3600000)} ساعة` : `${Math.floor(ago/86400000)} يوم`;
+                        return (
+                          <div key={u.id} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/30 transition-colors">
+                            <span className="text-xs text-muted-foreground w-5">{i + 1}</span>
+                            <div className={`w-2 h-2 rounded-full shrink-0 ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/30'}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-foreground truncate">{u.name}</p>
+                              <p className="text-[10px] text-muted-foreground">{u.city}</p>
+                            </div>
+                            <div className="text-left shrink-0">
+                              <p className={`text-[11px] font-medium ${isOnline ? 'text-emerald-400' : 'text-muted-foreground'}`}>
+                                {isOnline ? '● متصل' : `منذ ${timeLabel}`}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    {users.filter(u => u.last_seen).length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-4">لا توجد بيانات نشاط بعد</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -581,6 +680,27 @@ const AdminDashboard = () => {
           {section === 'users' && (
             <section className="space-y-4">
               <h2 className="text-base font-bold text-foreground">المستخدمون المسجلون ({users.length})</h2>
+
+              {/* Users map in users section */}
+              {users.some(u => u.lat && u.lng) && (
+                <div className="bg-card border border-border rounded-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+                    <Map className="w-4 h-4 text-accent" />
+                    <span className="text-xs font-bold text-foreground">مواقع المستخدمين على الخريطة</span>
+                    <span className="mr-auto text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                      {users.filter(u => u.lat && u.lng).length} مستخدم
+                    </span>
+                  </div>
+                  <div className="h-72">
+                    <LocationMap
+                      lat={33.42}
+                      lng={43.31}
+                      markers={users.filter(u => u.lat && u.lng).map(u => ({ lat: u.lat, lng: u.lng, name: u.name, city: u.city }))}
+                      className="w-full h-full"
+                    />
+                  </div>
+                </div>
+              )}
 
               {stats.cityCounts.length > 0 && (
                 <div className="flex flex-wrap gap-2">

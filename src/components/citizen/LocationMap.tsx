@@ -21,17 +21,19 @@ interface LocationMapProps {
   radiusKm?: number;
   onLocationSelect?: (lat: number, lng: number) => void;
   onRadiusChange?: (km: number) => void;
+  markers?: { lat: number; lng: number; name?: string; city?: string }[];
   className?: string;
 }
 
 const LocationMap = ({
   lat, lng, interactive = false,
-  radiusKm, onLocationSelect, className
+  radiusKm, onLocationSelect, markers, className
 }: LocationMapProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const userMarkersRef = useRef<L.LayerGroup | null>(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -40,10 +42,10 @@ const LocationMap = ({
       center: [lat, lng],
       zoom: 13,
       zoomControl: interactive,
-      dragging: interactive,
-      scrollWheelZoom: interactive,
+      dragging: interactive || !!markers,
+      scrollWheelZoom: interactive || !!markers,
       doubleClickZoom: interactive,
-      touchZoom: interactive,
+      touchZoom: interactive || !!markers,
       attributionControl: false,
     });
 
@@ -51,8 +53,11 @@ const LocationMap = ({
       maxZoom: 18,
     }).addTo(map);
 
-    const marker = L.marker([lat, lng]).addTo(map);
-    markerRef.current = marker;
+    // Only add center marker if not a user-markers-only map
+    if (!markers || interactive) {
+      const marker = L.marker([lat, lng]).addTo(map);
+      markerRef.current = marker;
+    }
 
     if (radiusKm) {
       const circle = L.circle([lat, lng], {
@@ -63,6 +68,33 @@ const LocationMap = ({
         weight: 2,
       }).addTo(map);
       circleRef.current = circle;
+      // Fit map to show the full circle
+      map.fitBounds(circle.getBounds(), { padding: [20, 20] });
+    }
+
+    // Add user markers layer
+    if (markers && markers.length > 0) {
+      const layerGroup = L.layerGroup().addTo(map);
+      const userIcon = L.divIcon({
+        className: 'user-map-marker',
+        html: '<div style="background:#3b82f6;width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>',
+        iconSize: [12, 12],
+        iconAnchor: [6, 6],
+      });
+      const bounds = L.latLngBounds([]);
+      markers.forEach(m => {
+        if (m.lat && m.lng) {
+          const mk = L.marker([m.lat, m.lng], { icon: userIcon }).addTo(layerGroup);
+          if (m.name) {
+            mk.bindPopup(`<div dir="rtl" style="font-size:12px"><b>${m.name}</b><br/>${m.city || ''}</div>`);
+          }
+          bounds.extend([m.lat, m.lng]);
+        }
+      });
+      userMarkersRef.current = layerGroup;
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
+      }
     }
 
     if (interactive && onLocationSelect) {
@@ -97,19 +129,24 @@ const LocationMap = ({
     }
   }, [lat, lng]);
 
-  // Update circle radius
+  // Update circle radius and fit map to show full circle
   useEffect(() => {
     if (circleRef.current && radiusKm) {
       circleRef.current.setRadius(radiusKm * 1000);
+      if (mapRef.current) {
+        mapRef.current.fitBounds(circleRef.current.getBounds(), { padding: [20, 20] });
+      }
     } else if (!circleRef.current && radiusKm && mapRef.current && markerRef.current) {
       const pos = markerRef.current.getLatLng();
-      circleRef.current = L.circle([pos.lat, pos.lng], {
+      const circle = L.circle([pos.lat, pos.lng], {
         radius: radiusKm * 1000,
         color: '#f59e0b',
         fillColor: '#f59e0b',
         fillOpacity: 0.15,
         weight: 2,
       }).addTo(mapRef.current);
+      circleRef.current = circle;
+      mapRef.current.fitBounds(circle.getBounds(), { padding: [20, 20] });
     }
   }, [radiusKm]);
 

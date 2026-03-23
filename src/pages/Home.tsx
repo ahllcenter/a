@@ -2,15 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Shield, ShieldCheck, Bell, RefreshCw, LogOut, MapPin, Wifi, WifiOff,
   Download, ChevronLeft, Clock, AlertTriangle, Zap, Droplets, CloudRain,
-  Settings, Eye, Volume2, VolumeX
+  Settings, Eye, Volume2, VolumeX, Phone
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAlerts, getAllAlerts } from '@/lib/api';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
+import { playAlertSound, isUrgentSeverity } from '@/lib/alert-sound';
 import AlertCard from '@/components/citizen/AlertCard';
 import AppHeader from '@/components/citizen/AppHeader';
 import type { Alert } from '@/lib/alert-data';
-import { CATEGORIES } from '@/lib/alert-data';
+import { CATEGORIES, SEVERITY_LABELS } from '@/lib/alert-data';
 import { Link } from 'react-router-dom';
 
 const POLL_INTERVAL = 15_000; // 15 seconds for near real-time
@@ -25,7 +26,8 @@ const Home = () => {
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('anbar_sound') !== 'off');
-  const [prevAlertCount, setPrevAlertCount] = useState(0);
+  const [prevAlertIds, setPrevAlertIds] = useState<Set<string | number>>(new Set());
+  const [urgentAlert, setUrgentAlert] = useState<Alert | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'all' | 'categories'>('active');
 
   useLocationTracking();
@@ -68,17 +70,24 @@ const Home = () => {
       setAlerts(newAlerts);
       setRecentAlerts((allRes.data.alerts || []).slice(0, 20));
       setLastUpdate(new Date());
-      // Play sound on new alert
-      if (soundEnabled && newAlerts.length > prevAlertCount && prevAlertCount > 0) {
-        try { new Audio('/notification.mp3').play().catch(() => {}); } catch {}
+      // Check for new urgent alerts (critical/high) and play alarm
+      if (prevAlertIds.size > 0) {
+        const newUrgent = newAlerts.find(
+          (a: Alert) => !prevAlertIds.has(a.id) && isUrgentSeverity(a.severity)
+        );
+        if (newUrgent) {
+          const sev = newUrgent.severity as 'critical' | 'high';
+          playAlertSound(sev);
+          setUrgentAlert(newUrgent);
+        }
       }
-      setPrevAlertCount(newAlerts.length);
+      setPrevAlertIds(new Set(newAlerts.map((a: Alert) => a.id)));
     } catch (err) {
       console.error('Failed to fetch alerts:', err);
     } finally {
       setLoading(false);
     }
-  }, [soundEnabled, prevAlertCount]);
+  }, [prevAlertIds]);
 
   useEffect(() => {
     fetchAlerts();
@@ -305,6 +314,15 @@ const Home = () => {
           </Link>
         )}
 
+        {/* Emergency Numbers quick link */}
+        <Link
+          to="/emergency"
+          className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white rounded-xl px-4 py-3 text-sm font-bold active:scale-95 transition-all animate-fade-up"
+        >
+          <Phone className="w-4 h-4" />
+          أرقام الطوارئ — اتصل الآن
+        </Link>
+
         {/* Manual install link (for iOS) */}
         {!showInstallBanner && !window.matchMedia('(display-mode: standalone)').matches && (
           <Link
@@ -324,6 +342,52 @@ const Home = () => {
           </p>
         </div>
       </footer>
+
+      {/* Fullscreen urgent alert overlay */}
+      {urgentAlert && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-up" dir="rtl">
+          <div className={`mx-4 max-w-md w-full rounded-2xl border-2 p-6 text-center space-y-4 ${
+            urgentAlert.severity === 'critical'
+              ? 'bg-red-950 border-red-500 animate-pulse'
+              : 'bg-orange-950 border-orange-500'
+          }`}>
+            <div className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center ${
+              urgentAlert.severity === 'critical' ? 'bg-red-500/20' : 'bg-orange-500/20'
+            }`}>
+              <AlertTriangle className={`w-10 h-10 ${
+                urgentAlert.severity === 'critical' ? 'text-red-400' : 'text-orange-400'
+              }`} />
+            </div>
+            <div className={`inline-block px-3 py-1 rounded-full text-sm font-extrabold ${
+              urgentAlert.severity === 'critical'
+                ? 'bg-red-500 text-white'
+                : 'bg-orange-500 text-white'
+            }`}>
+              ⚠️ تنبيه {SEVERITY_LABELS[urgentAlert.severity]}
+            </div>
+            <h2 className="text-xl font-extrabold text-white leading-relaxed">
+              {urgentAlert.title}
+            </h2>
+            <p className="text-sm text-gray-300 leading-relaxed">
+              {urgentAlert.description}
+            </p>
+            {(urgentAlert.location || urgentAlert.location_label) && (
+              <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
+                <MapPin className="w-3.5 h-3.5" />
+                {urgentAlert.location || urgentAlert.location_label}
+              </p>
+            )}
+            <button
+              onClick={() => setUrgentAlert(null)}
+              className={`w-full py-3 rounded-xl text-white font-bold text-base transition-opacity hover:opacity-90 ${
+                urgentAlert.severity === 'critical' ? 'bg-red-600' : 'bg-orange-600'
+              }`}
+            >
+              فهمت — إغلاق التنبيه
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

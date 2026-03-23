@@ -3,7 +3,7 @@ import ActiveAlertsBanner from "@/components/citizen/ActiveAlertsBanner";
 import AlertCard from "@/components/citizen/AlertCard";
 import CategoryGrid from "@/components/citizen/CategoryGrid";
 import { MOCK_ALERTS } from "@/lib/alert-data";
-import { Bell, ChevronLeft } from "lucide-react";
+import { Bell, ChevronLeft, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Index = () => {
@@ -56,6 +56,23 @@ const Index = () => {
         </section>
 
         <CategoryGrid />
+
+        {/* Emergency Numbers CTA */}
+        <section className="bg-red-600 rounded-xl p-5 text-white text-center animate-fade-up stagger-3">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Phone className="w-5 h-5" />
+            <h3 className="text-sm font-bold">أرقام الطوارئ</h3>
+          </div>
+          <p className="text-xs opacity-90 mb-3">
+            جميع أرقام الطوارئ والخدمات في محافظة الأنبار — اتصل بنقرة واحدة
+          </p>
+          <Link
+            to="/emergency"
+            className="inline-flex items-center gap-2 bg-white text-red-600 px-5 py-2.5 rounded-lg text-sm font-bold hover:opacity-90 active:scale-95 transition-all"
+          >
+            عرض الأرقام
+          </Link>
+        </section>
 
         {/* Install CTA */}
         <section className="bg-primary rounded-xl p-5 text-primary-foreground text-center animate-fade-up stagger-4">

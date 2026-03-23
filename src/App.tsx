@@ -16,6 +16,7 @@ import About from "./pages/About";
 import AlertGuide from "./pages/AlertGuide";
 import ContactReports from "./pages/ContactReports";
 import NotFound from "./pages/NotFound";
+import EmergencyNumbers from "./pages/EmergencyNumbers";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ const AppRoutes = () => (
     <Route path="/install" element={<Install />} />
     <Route path="/about" element={<About />} />
     <Route path="/guide" element={<AlertGuide />} />
+    <Route path="/emergency" element={<EmergencyNumbers />} />
     <Route path="/contact" element={<ProtectedRoute><ContactReports /></ProtectedRoute>} />
     <Route path="/admin/login" element={<AdminLogin />} />
     <Route path="/admin" element={<AdminDashboard />} />
