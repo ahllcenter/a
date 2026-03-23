@@ -1,25 +1,49 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { supabase } = require('../db');
 
 const router = express.Router();
 
-// POST /api/admin/login — Admin login with username/password
-router.post('/login', (req, res) => {
+// POST /api/admin/login — Admin login with username/password (env vars OR DB admin)
+router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
       return res.status(400).json({ error: 'اسم المستخدم وكلمة المرور مطلوبان' });
     }
-    if (username !== process.env.ADMIN_USERNAME || password !== process.env.ADMIN_PASSWORD) {
-      return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+
+    // Check env-based admin first
+    if (username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD) {
+      const token = jwt.sign(
+        { admin: true, username },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+      return res.json({ token, admin: { username } });
     }
-    const token = jwt.sign(
-      { admin: true, username },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-    res.json({ token, admin: { username } });
+
+    // Check DB-based admin (phone field stores email for admins)
+    const { data: dbAdmin } = await supabase
+      .from('users')
+      .select('id, name, phone, password_hash, is_admin')
+      .eq('phone', username)
+      .eq('is_admin', true)
+      .maybeSingle();
+
+    if (dbAdmin && dbAdmin.password_hash) {
+      const valid = await bcrypt.compare(password, dbAdmin.password_hash);
+      if (valid) {
+        const token = jwt.sign(
+          { admin: true, username: dbAdmin.phone },
+          process.env.JWT_SECRET,
+          { expiresIn: '7d' }
+        );
+        return res.json({ token, admin: { username: dbAdmin.phone } });
+      }
+    }
+
+    return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
   } catch (err) {
     console.error('Admin login error:', err);
     res.status(500).json({ error: 'حدث خطأ' });

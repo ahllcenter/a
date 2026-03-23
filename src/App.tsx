@@ -18,7 +18,6 @@ import AlertGuide from "./pages/AlertGuide";
 import ContactReports from "./pages/ContactReports";
 import NotFound from "./pages/NotFound";
 import EmergencyNumbers from "./pages/EmergencyNumbers";
-import ForgotPassword from "./pages/ForgotPassword";
 
 const queryClient = new QueryClient();
 
@@ -51,7 +50,6 @@ const AppRoutes = () => (
     <Route path="/" element={<Index />} />
     <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
     <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
-    <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
     <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
     <Route path="/archive" element={<ProtectedRoute><Archive /></ProtectedRoute>} />
     <Route path="/install" element={<Install />} />
