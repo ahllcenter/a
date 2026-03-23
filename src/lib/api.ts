@@ -26,11 +26,14 @@ api.interceptors.response.use(
 );
 
 // Auth
-export const registerUser = (data: { name: string; phone: string; city: string; lat?: number; lng?: number }) =>
+export const registerUser = (data: { name: string; phone: string; city: string; password: string; lat?: number; lng?: number }) =>
   api.post('/auth/register', data);
 
 export const verifyOTP = (data: { phone: string; code: string }) =>
   api.post('/auth/verify-otp', data);
+
+export const loginUser = (data: { phone: string; password: string }) =>
+  api.post('/auth/login', data);
 
 export const getMe = () =>
   api.get('/auth/me');
