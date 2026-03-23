@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Shield, ShieldCheck, Bell, RefreshCw, LogOut, MapPin, Wifi, WifiOff,
   Download, ChevronLeft, Clock, AlertTriangle, Zap, Droplets, CloudRain,
@@ -7,7 +7,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { getAlerts, getAllAlerts } from '@/lib/api';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
-import { playAlertSound, isUrgentSeverity } from '@/lib/alert-sound';
+import { playAlertSound, isUrgentSeverity, unlockAudio } from '@/lib/alert-sound';
 import AlertCard from '@/components/citizen/AlertCard';
 import AppHeader from '@/components/citizen/AppHeader';
 import GeolocationModal, { hasBeenPrompted } from '@/components/citizen/GeolocationModal';
@@ -27,6 +27,7 @@ const Home = () => {
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('anbar_sound') !== 'off');
+  const soundEnabledRef = useRef(soundEnabled);
   const [prevAlertIds, setPrevAlertIds] = useState<Set<string | number>>(new Set());
   const [urgentAlert, setUrgentAlert] = useState<Alert | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'all' | 'categories'>('active');
@@ -79,8 +80,20 @@ const Home = () => {
         );
         if (newUrgent) {
           const sev = newUrgent.severity as 'critical' | 'high';
-          playAlertSound(sev);
+          if (soundEnabledRef.current) {
+            playAlertSound(sev);
+          }
           setUrgentAlert(newUrgent);
+          // Send browser notification for background visibility
+          if (Notification.permission === 'granted') {
+            try {
+              new Notification(newUrgent.title, {
+                body: newUrgent.description || 'تنبيه عاجل من منارة الأنبار',
+                icon: '/icon-192.png',
+                tag: `alert-${newUrgent.id}`,
+              });
+            } catch { /* ignore */ }
+          }
         }
       }
       setPrevAlertIds(new Set(newAlerts.map((a: Alert) => a.id)));
@@ -108,8 +121,30 @@ const Home = () => {
   const toggleSound = () => {
     const next = !soundEnabled;
     setSoundEnabled(next);
+    soundEnabledRef.current = next;
     localStorage.setItem('anbar_sound', next ? 'on' : 'off');
+    if (next) {
+      unlockAudio();
+    }
   };
+
+  // Unlock audio on first user interaction & request notification permission
+  useEffect(() => {
+    const handleInteraction = () => {
+      unlockAudio();
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('touchstart', handleInteraction);
+    };
+    window.addEventListener('click', handleInteraction, { once: true });
+    window.addEventListener('touchstart', handleInteraction, { once: true });
+    return () => {
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('touchstart', handleInteraction);
+    };
+  }, []);
 
   const activeAlerts = alerts.filter(a => a.is_active !== false);
 

@@ -9,6 +9,27 @@ function getAudioContext(): AudioContext {
   return audioCtx;
 }
 
+/**
+ * Must be called from a user gesture (click/touch) to unlock AudioContext.
+ * iOS Safari and many Android browsers require this before any programmatic playback.
+ */
+export function unlockAudio() {
+  try {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+    // Play a silent buffer to fully unlock on iOS
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch {
+    // ignore
+  }
+}
+
 /** Trigger device vibration (works on Android even in silent mode) */
 function vibrateDevice(severity: 'critical' | 'high') {
   if (!navigator.vibrate) return;
