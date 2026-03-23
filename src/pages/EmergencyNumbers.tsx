@@ -20,6 +20,7 @@ interface ServiceSection {
   iconColor: string;
   bgColor: string;
   borderColor: string;
+  btnClass: string;
   entries: PhoneEntry[];
 }
 
@@ -31,6 +32,7 @@ const SERVICES: ServiceSection[] = [
     iconColor: "text-emerald-500",
     bgColor: "bg-emerald-500/10",
     borderColor: "border-emerald-500/30",
+    btnClass: "bg-emerald-600 hover:bg-emerald-700 text-white",
     entries: [
       { label: "بلدية الرمادي — الرقم الساخن", numbers: ["07833311136"] },
     ],
@@ -42,6 +44,7 @@ const SERVICES: ServiceSection[] = [
     iconColor: "text-blue-500",
     bgColor: "bg-blue-500/10",
     borderColor: "border-blue-500/30",
+    btnClass: "bg-blue-600 hover:bg-blue-700 text-white",
     entries: [
       { label: "مديرية مياه الأنبار", numbers: ["07866505266"] },
     ],
@@ -53,6 +56,7 @@ const SERVICES: ServiceSection[] = [
     iconColor: "text-amber-500",
     bgColor: "bg-amber-500/10",
     borderColor: "border-amber-500/30",
+    btnClass: "bg-amber-600 hover:bg-amber-700 text-white",
     entries: [
       { label: "الخط الساخن المجاني", numbers: ["159"] },
       { label: "شكاوى مقر فرع مركز الأنبار", numbers: ["07833491694", "07833491695"] },
@@ -131,10 +135,10 @@ const EmergencyNumbers = () => {
                           <a
                             key={num}
                             href={`tel:${num}`}
-                            className="inline-flex items-center gap-1.5 bg-primary/10 hover:bg-primary/20 active:scale-95 text-primary font-bold text-sm px-3 py-2 rounded-lg transition-all"
+                            className={`inline-flex items-center gap-1.5 ${service.btnClass} active:scale-95 font-bold text-sm px-4 py-2.5 rounded-lg transition-all shadow-sm`}
                             dir="ltr"
                           >
-                            <Phone className="w-3.5 h-3.5" />
+                            <Phone className="w-4 h-4" />
                             {num}
                           </a>
                         ))}
