@@ -5,7 +5,7 @@ import {
   Plus, MapPin, Globe, Building2, Megaphone, Trash2, Loader2,
   LayoutDashboard, List, UserCog, Info, BookOpen, MessageSquare,
   AlertTriangle, Mail, Eye, CheckCircle2, XCircle, Reply,
-  Map, Activity, Clock, TrendingUp, UserPlus
+  Map, Activity, Clock, TrendingUp, UserPlus, Shield
 } from "lucide-react";
 import {
   CATEGORIES, SEVERITY_LABELS,
@@ -17,13 +17,14 @@ import {
   adminGetInquiries, adminReplyInquiry,
   adminGetReports, adminUpdateReportStatus,
   adminSendMessage, adminGetMessages,
-  adminDeleteUser, adminCreateUser
+  adminDeleteUser, adminCreateUser,
+  adminGetAdmins, adminCreateAdmin, adminDeleteAdmin
 } from "@/lib/api";
 import AlertCard from "@/components/citizen/AlertCard";
 import LocationMap from "@/components/citizen/LocationMap";
 
 type AlertType = 'geo' | 'city' | 'broadcast';
-type Section = 'stats' | 'create' | 'alerts' | 'users' | 'inquiries' | 'reports' | 'messages';
+type Section = 'stats' | 'create' | 'alerts' | 'users' | 'inquiries' | 'reports' | 'messages' | 'admin-mgmt';
 
 const CITIES = [
   'الرمادي', 'الفلوجة', 'هيت', 'حديثة', 'عنة', 'القائم',
@@ -39,6 +40,7 @@ const SIDEBAR_ITEMS: { key: Section; label: string; icon: typeof LayoutDashboard
   { key: 'inquiries', label: 'الاستفسارات', icon: MessageSquare },
   { key: 'reports', label: 'البلاغات', icon: AlertTriangle },
   { key: 'messages', label: 'المراسلات', icon: Mail },
+  { key: 'admin-mgmt', label: 'إدارة المدراء', icon: Shield },
 ];
 
 const AdminDashboard = () => {
@@ -89,8 +91,24 @@ const AdminDashboard = () => {
   const [addUserLoading, setAddUserLoading] = useState(false);
   const [addUserResult, setAddUserResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
+  // City filter
+  const [filterCities, setFilterCities] = useState<string[]>([]);
+
+  // Admin management
+  const [admins, setAdmins] = useState<any[]>([]);
+  const [showAddAdmin, setShowAddAdmin] = useState(false);
+  const [newAdminName, setNewAdminName] = useState('');
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [addAdminLoading, setAddAdminLoading] = useState(false);
+  const [addAdminResult, setAddAdminResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
   const categoryEntries = Object.entries(CATEGORIES) as [AlertCategory, (typeof CATEGORIES)[AlertCategory]][];
   const severityEntries = Object.entries(SEVERITY_LABELS) as [AlertSeverity, string][];
+
+  const filteredUsers = filterCities.length > 0
+    ? users.filter(u => filterCities.includes(u.city))
+    : users;
 
   // Verify admin token on mount
   useEffect(() => {
@@ -102,9 +120,10 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, alertsRes, usersRes, inqRes, repRes, msgRes] = await Promise.all([
+      const [statsRes, alertsRes, usersRes, inqRes, repRes, msgRes, adminsRes] = await Promise.all([
         getAdminStats(), adminGetAllAlerts(), getAdminUsers(),
-        adminGetInquiries(), adminGetReports(), adminGetMessages()
+        adminGetInquiries(), adminGetReports(), adminGetMessages(),
+        adminGetAdmins()
       ]);
       setStats(statsRes.data.stats);
       setAlerts(alertsRes.data.alerts || []);
@@ -112,6 +131,7 @@ const AdminDashboard = () => {
       setInquiries(inqRes.data.inquiries || []);
       setReports(repRes.data.reports || []);
       setSentMessages(msgRes.data.messages || []);
+      setAdmins(adminsRes.data.admins || []);
     } catch (err) {
       console.error('Failed to fetch admin data:', err);
     }
@@ -153,6 +173,39 @@ const AdminDashboard = () => {
     } finally {
       setAddUserLoading(false);
     }
+  };
+
+  const handleAddAdmin = async () => {
+    if (!newAdminName.trim() || !newAdminEmail.trim() || !newAdminPassword) {
+      return setAddAdminResult({ ok: false, msg: 'يرجى ملء جميع الحقول' });
+    }
+    setAddAdminLoading(true);
+    setAddAdminResult(null);
+    try {
+      await adminCreateAdmin({ name: newAdminName.trim(), email: newAdminEmail.trim(), password: newAdminPassword });
+      setAddAdminResult({ ok: true, msg: 'تم إضافة المدير بنجاح' });
+      setNewAdminName(''); setNewAdminEmail(''); setNewAdminPassword('');
+      setShowAddAdmin(false);
+      fetchData();
+    } catch (err: any) {
+      setAddAdminResult({ ok: false, msg: err.response?.data?.error || 'فشل إضافة المدير' });
+    } finally {
+      setAddAdminLoading(false);
+    }
+  };
+
+  const handleDeleteAdmin = async (id: number, name: string) => {
+    if (!confirm(`هل أنت متأكد من حذف المدير "${name}"؟`)) return;
+    try {
+      await adminDeleteAdmin(id);
+      setAdmins(prev => prev.filter(a => a.id !== id));
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'فشل حذف المدير');
+    }
+  };
+
+  const toggleFilterCity = (city: string) => {
+    setFilterCities(prev => prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]);
   };
 
   const handleSend = async () => {
@@ -788,34 +841,63 @@ const AdminDashboard = () => {
                 </div>
               )}
 
+              {/* City filter chips */}
+              {stats.cityCounts.length > 0 && (
+                <div className="bg-card border border-border rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Building2 className="w-4 h-4 text-accent" />
+                    <span className="text-xs font-bold text-foreground">تصفية حسب المدينة</span>
+                    {filterCities.length > 0 && (
+                      <button
+                        onClick={() => setFilterCities([])}
+                        className="mr-auto text-[10px] text-destructive hover:underline"
+                      >
+                        مسح الفلتر
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {stats.cityCounts.map(({ city, count }) => (
+                      <button
+                        key={city}
+                        onClick={() => toggleFilterCity(city)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all active:scale-95 ${
+                          filterCities.includes(city)
+                            ? 'border-accent bg-accent/20 text-accent'
+                            : 'border-border bg-card text-muted-foreground hover:border-accent/50'
+                        }`}
+                      >
+                        {city}: {count}
+                      </button>
+                    ))}
+                  </div>
+                  {filterCities.length > 0 && (
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      عرض {filteredUsers.length} من {users.length} مستخدم
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Users map in users section */}
-              {users.some(u => u.lat && u.lng) && (
+              {filteredUsers.some(u => u.lat && u.lng) && (
                 <div className="bg-card border border-border rounded-xl overflow-hidden">
                   <div className="px-4 py-3 border-b border-border flex items-center gap-2">
                     <Map className="w-4 h-4 text-accent" />
                     <span className="text-xs font-bold text-foreground">مواقع المستخدمين على الخريطة</span>
                     <span className="mr-auto text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                      {users.filter(u => u.lat && u.lng).length} مستخدم
+                      {filteredUsers.filter(u => u.lat && u.lng).length} مستخدم
                     </span>
                   </div>
                   <div className="h-72">
                     <LocationMap
+                      key={filterCities.join(',')}
                       lat={33.42}
                       lng={43.31}
-                      markers={users.filter(u => u.lat && u.lng).map(u => ({ lat: u.lat, lng: u.lng, name: u.name, city: u.city }))}
+                      markers={filteredUsers.filter(u => u.lat && u.lng).map(u => ({ lat: u.lat, lng: u.lng, name: u.name, city: u.city }))}
                       className="w-full h-full"
                     />
                   </div>
-                </div>
-              )}
-
-              {stats.cityCounts.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {stats.cityCounts.map(({ city, count }) => (
-                    <span key={city} className="px-3 py-1.5 rounded-full bg-accent/10 text-accent text-xs font-bold border border-accent/20">
-                      {city}: {count}
-                    </span>
-                  ))}
                 </div>
               )}
 
@@ -832,7 +914,7 @@ const AdminDashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {users.map(u => (
+                      {filteredUsers.map(u => (
                         <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                           <td className="px-4 py-2.5 text-foreground font-medium">{u.name}</td>
                           <td className="px-4 py-2.5 text-muted-foreground" dir="ltr">{u.phone}</td>
@@ -865,9 +947,11 @@ const AdminDashboard = () => {
                           </td>
                         </tr>
                       ))}
-                      {users.length === 0 && (
+                      {filteredUsers.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">لا يوجد مستخدمون مسجلون</td>
+                          <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                            {filterCities.length > 0 ? 'لا يوجد مستخدمون في المدن المحددة' : 'لا يوجد مستخدمون مسجلون'}
+                          </td>
                         </tr>
                       )}
                     </tbody>
@@ -1180,6 +1264,134 @@ const AdminDashboard = () => {
                   ))}
                 </div>
               )}
+            </section>
+          )}
+
+          {/* ========== ADMIN MANAGEMENT SECTION ========== */}
+          {section === 'admin-mgmt' && (
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-accent" />
+                  إدارة المدراء ({admins.length})
+                </h2>
+                <button
+                  onClick={() => { setShowAddAdmin(!showAddAdmin); setAddAdminResult(null); }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-foreground text-xs font-bold hover:opacity-90 transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  إضافة مدير
+                </button>
+              </div>
+
+              {/* Add admin form */}
+              {showAddAdmin && (
+                <div className="bg-card border border-accent/30 rounded-xl p-4 space-y-3">
+                  <h3 className="text-sm font-bold text-foreground">إضافة مدير جديد</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <input
+                      type="text"
+                      value={newAdminName}
+                      onChange={(e) => setNewAdminName(e.target.value)}
+                      placeholder="اسم المدير"
+                      className="px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    />
+                    <input
+                      type="email"
+                      value={newAdminEmail}
+                      onChange={(e) => setNewAdminEmail(e.target.value)}
+                      placeholder="البريد الإلكتروني"
+                      dir="ltr"
+                      className="px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    />
+                    <input
+                      type="password"
+                      value={newAdminPassword}
+                      onChange={(e) => setNewAdminPassword(e.target.value)}
+                      placeholder="كلمة المرور (6 أحرف+)"
+                      dir="ltr"
+                      className="px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    />
+                  </div>
+                  {addAdminResult && (
+                    <p className={`text-xs px-3 py-2 rounded-lg ${addAdminResult.ok ? 'bg-emerald-500/10 text-emerald-500' : 'bg-destructive/10 text-destructive'}`}>
+                      {addAdminResult.msg}
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleAddAdmin}
+                      disabled={addAdminLoading}
+                      className="px-4 py-2 rounded-lg bg-accent text-accent-foreground text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      {addAdminLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shield className="w-3.5 h-3.5" />}
+                      {addAdminLoading ? 'جاري الإضافة...' : 'إضافة مدير'}
+                    </button>
+                    <button
+                      onClick={() => setShowAddAdmin(false)}
+                      className="px-4 py-2 rounded-lg bg-muted text-muted-foreground text-xs font-bold hover:bg-muted/80"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Env-based admin info */}
+              <div className="bg-card border border-border rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield className="w-4 h-4 text-amber-500" />
+                  <span className="text-xs font-bold text-foreground">المدير الرئيسي (بيئة النظام)</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  البريد: <span className="text-foreground font-mono" dir="ltr">admin@iraq.com</span> — هذا المدير لا يمكن حذفه أو تعديله
+                </p>
+              </div>
+
+              {/* Admins table */}
+              <div className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="text-right px-4 py-3 text-xs font-bold text-muted-foreground">الاسم</th>
+                        <th className="text-right px-4 py-3 text-xs font-bold text-muted-foreground">البريد</th>
+                        <th className="text-right px-4 py-3 text-xs font-bold text-muted-foreground">تاريخ الإنشاء</th>
+                        <th className="text-right px-4 py-3 text-xs font-bold text-muted-foreground">آخر تسجيل دخول</th>
+                        <th className="text-right px-4 py-3 text-xs font-bold text-muted-foreground">إجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {admins.map(a => (
+                        <tr key={a.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                          <td className="px-4 py-2.5 text-foreground font-medium">{a.name}</td>
+                          <td className="px-4 py-2.5 text-muted-foreground" dir="ltr">{a.phone}</td>
+                          <td className="px-4 py-2.5 text-muted-foreground text-xs">
+                            {a.created_at ? new Date(a.created_at).toLocaleDateString('ar-IQ') : '—'}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted-foreground text-xs">
+                            {a.last_seen ? new Date(a.last_seen).toLocaleString('ar-IQ') : '—'}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <button
+                              onClick={() => handleDeleteAdmin(a.id, a.name)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/10 text-destructive text-[11px] font-bold hover:bg-destructive/20 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              حذف
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {admins.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">لا يوجد مدراء إضافيون</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </section>
           )}
         </main>

@@ -188,4 +188,89 @@ router.post('/users', requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/admin/admins — List all admin users
+router.get('/admins', requireAdmin, async (req, res) => {
+  try {
+    const { data: admins, error } = await supabase
+      .from('users')
+      .select('id, name, phone, created_at, last_seen')
+      .eq('is_admin', true)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json({ admins: admins || [] });
+  } catch (err) {
+    console.error('Get admins error:', err);
+    res.status(500).json({ error: 'حدث خطأ' });
+  }
+});
+
+// POST /api/admin/admins — Create a new admin
+router.post('/admins', requireAdmin, async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'الاسم والبريد وكلمة المرور مطلوبة' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' });
+    }
+
+    const { data: existing } = await supabase
+      .from('users')
+      .select('id')
+      .eq('phone', email)
+      .maybeSingle();
+
+    if (existing) {
+      return res.status(400).json({ error: 'هذا البريد مسجل بالفعل' });
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+
+    const { data: admin, error } = await supabase
+      .from('users')
+      .insert({
+        name,
+        phone: email,
+        city: 'إدارة',
+        is_admin: true,
+        is_verified: true,
+        password_hash,
+        last_seen: new Date().toISOString()
+      })
+      .select('id, name, phone, created_at')
+      .single();
+
+    if (error) throw error;
+    res.json({ message: 'تم إنشاء المدير بنجاح', admin });
+  } catch (err) {
+    console.error('Create admin error:', err);
+    res.status(500).json({ error: 'حدث خطأ في إنشاء المدير' });
+  }
+});
+
+// DELETE /api/admin/admins/:id — Delete an admin
+router.delete('/admins/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'معرّف غير صالح' });
+
+    const { data, error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', id)
+      .eq('is_admin', true)
+      .select('id')
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'المدير غير موجود' });
+
+    res.json({ message: 'تم حذف المدير بنجاح' });
+  } catch (err) {
+    console.error('Delete admin error:', err);
+    res.status(500).json({ error: 'حدث خطأ في حذف المدير' });
+  }
+});
+
 module.exports = router;

@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 // Fix default marker icon
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -72,9 +75,25 @@ const LocationMap = ({
       map.fitBounds(circle.getBounds(), { padding: [20, 20] });
     }
 
-    // Add user markers layer
+    // Add user markers layer with clustering
     if (markers && markers.length > 0) {
-      const layerGroup = L.layerGroup().addTo(map);
+      const clusterGroup = (L as any).markerClusterGroup({
+        maxClusterRadius: 50,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        disableClusteringAtZoom: 16,
+        iconCreateFunction: (cluster: any) => {
+          const count = cluster.getChildCount();
+          const size = count < 10 ? 'small' : count < 50 ? 'medium' : 'large';
+          const px = size === 'small' ? 36 : size === 'medium' ? 44 : 52;
+          return L.divIcon({
+            html: `<div style="background:rgba(59,130,246,0.85);width:${px}px;height:${px}px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:${size === 'large' ? 14 : 12}px;border:3px solid rgba(255,255,255,0.9);box-shadow:0 2px 8px rgba(0,0,0,0.3)">${count}</div>`,
+            className: 'marker-cluster-custom',
+            iconSize: L.point(px, px),
+          });
+        },
+      });
       const userIcon = L.divIcon({
         className: 'user-map-marker',
         html: '<div style="background:#3b82f6;width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>',
@@ -84,14 +103,16 @@ const LocationMap = ({
       const bounds = L.latLngBounds([]);
       markers.forEach(m => {
         if (m.lat && m.lng) {
-          const mk = L.marker([m.lat, m.lng], { icon: userIcon }).addTo(layerGroup);
+          const mk = L.marker([m.lat, m.lng], { icon: userIcon });
           if (m.name) {
             mk.bindPopup(`<div dir="rtl" style="font-size:12px"><b>${m.name}</b><br/>${m.city || ''}</div>`);
           }
+          clusterGroup.addLayer(mk);
           bounds.extend([m.lat, m.lng]);
         }
       });
-      userMarkersRef.current = layerGroup;
+      map.addLayer(clusterGroup);
+      userMarkersRef.current = clusterGroup;
       if (bounds.isValid()) {
         map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
       }

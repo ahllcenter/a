@@ -209,4 +209,26 @@ export const adminCreateUser = (data: { name: string; phone: string; city: strin
   });
 };
 
+// Admin: Admin management
+export const adminGetAdmins = () => {
+  const adminToken = localStorage.getItem('anbar_admin_token');
+  return api.get('/admin/admins', {
+    headers: { Authorization: `Bearer ${adminToken}` }
+  });
+};
+
+export const adminCreateAdmin = (data: { name: string; email: string; password: string }) => {
+  const adminToken = localStorage.getItem('anbar_admin_token');
+  return api.post('/admin/admins', data, {
+    headers: { Authorization: `Bearer ${adminToken}` }
+  });
+};
+
+export const adminDeleteAdmin = (id: number) => {
+  const adminToken = localStorage.getItem('anbar_admin_token');
+  return api.delete(`/admin/admins/${id}`, {
+    headers: { Authorization: `Bearer ${adminToken}` }
+  });
+};
+
 export default api;
