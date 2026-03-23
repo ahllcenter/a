@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Phone, User, MapPin, Shield, Loader2, Lock, LogIn, UserPlus, Zap } from 'lucide-react';
 import { registerUser, loginUser } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 const CITIES = [
   'الرمادي', 'الفلوجة', 'هيت', 'حديثة', 'عنة', 'القائم',
@@ -24,7 +24,6 @@ type Mode = 'login' | 'register';
 
 const Register = () => {
   const { login } = useAuth();
-  const navigate = useNavigate();
 
   const [mode, setMode] = useState<Mode>('register');
   const [name, setName] = useState('');
@@ -44,7 +43,6 @@ const Register = () => {
     try {
       const res = await loginUser({ phone: fullPhone });
       login(res.data.token, res.data.user);
-      navigate('/home', { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.error || 'حدث خطأ في تسجيل الدخول');
     } finally {
@@ -63,7 +61,6 @@ const Register = () => {
     try {
       const res = await registerUser({ name: name.trim(), phone: fullPhone, city });
       login(res.data.token, res.data.user);
-      navigate('/home', { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.error || 'حدث خطأ في التسجيل');
     } finally {
