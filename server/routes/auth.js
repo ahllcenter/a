@@ -39,17 +39,23 @@ router.post('/register', async (req, res) => {
     const otpExpires = Date.now() + 5 * 60 * 1000;
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // Check if this is the first user — make them admin
+    const { count } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true });
+    const isFirstUser = (count === 0);
+
     if (existing) {
       // Update unverified user
       await supabase
         .from('users')
-        .update({ name, city, lat: lat || null, lng: lng || null, password_hash: passwordHash, otp_code: otp, otp_expires: otpExpires })
+        .update({ name, city, lat: lat || null, lng: lng || null, password_hash: passwordHash, otp_code: otp, otp_expires: otpExpires, is_admin: isFirstUser || undefined })
         .eq('phone', cleanPhone);
     } else {
       // Create new user
       await supabase
         .from('users')
-        .insert({ name, phone: cleanPhone, city, lat: lat || null, lng: lng || null, password_hash: passwordHash, otp_code: otp, otp_expires: otpExpires });
+        .insert({ name, phone: cleanPhone, city, lat: lat || null, lng: lng || null, password_hash: passwordHash, otp_code: otp, otp_expires: otpExpires, is_admin: isFirstUser });
     }
 
     try {
