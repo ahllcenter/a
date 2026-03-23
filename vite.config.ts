@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => ({
@@ -11,10 +10,15 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3005',
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [
     react(),
-    mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "icon-192.png", "icon-512.png"],
@@ -22,8 +26,8 @@ export default defineConfig(({ mode }) => ({
         name: "منارة الأنبار العاجلة",
         short_name: "منارة الأنبار",
         description: "نظام الإنذار المبكر لمحافظة الأنبار",
-        theme_color: "#1a2744",
-        background_color: "#f5f5f7",
+        theme_color: "#111827",
+        background_color: "#111318",
         display: "standalone",
         dir: "rtl",
         lang: "ar",

@@ -10,14 +10,22 @@ export type AlertCategory =
   | "flood" | "outbreak" | "animals" | "security" | "roads" | "holiday";
 
 export interface Alert {
-  id: string;
+  id: string | number;
   title: string;
   description: string;
   category: AlertCategory;
   severity: AlertSeverity;
-  timestamp: string;
-  location: string;
-  isActive: boolean;
+  timestamp?: string;
+  created_at?: string;
+  location?: string;
+  location_label?: string;
+  isActive?: boolean;
+  is_active?: number | boolean;
+  alert_type?: 'geo' | 'city' | 'broadcast';
+  target_lat?: number;
+  target_lng?: number;
+  target_radius_km?: number;
+  target_cities?: string;
 }
 
 export const CATEGORIES: Record<AlertCategory, { label: string; icon: typeof Plane }> = {

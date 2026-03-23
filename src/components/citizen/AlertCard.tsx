@@ -7,9 +7,12 @@ interface AlertCardProps {
 }
 
 const AlertCard = ({ alert, className = "" }: AlertCardProps) => {
-  const category = CATEGORIES[alert.category];
+  const category = CATEGORIES[alert.category] || { label: alert.category, icon: MapPin };
   const Icon = category.icon;
-  const timeAgo = getTimeAgo(alert.timestamp);
+  const ts = alert.timestamp || alert.created_at || '';
+  const timeAgo = ts ? getTimeAgo(ts) : '';
+  const location = alert.location || alert.location_label || '';
+  const isActive = alert.isActive || alert.is_active;
 
   return (
     <article
@@ -28,7 +31,7 @@ const AlertCard = ({ alert, className = "" }: AlertCardProps) => {
             >
               {SEVERITY_LABELS[alert.severity]}
             </span>
-            {alert.isActive && (
+            {isActive && (
               <span className="inline-flex items-center gap-1 text-[11px] text-success font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
                 نشط
@@ -44,12 +47,14 @@ const AlertCard = ({ alert, className = "" }: AlertCardProps) => {
           <div className="flex items-center gap-4 mt-2.5 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1">
               <MapPin className="w-3 h-3" />
-              {alert.location}
+              {location}
             </span>
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {timeAgo}
-            </span>
+            {timeAgo && (
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {timeAgo}
+              </span>
+            )}
           </div>
         </div>
       </div>

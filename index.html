@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#1a2744" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#111827" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="منارة الأنبار" />
     <title>منارة الأنبار العاجلة | Anbar Urgent Beacon</title>
@@ -16,7 +16,22 @@
     <link rel="apple-touch-icon" href="/icon-192.png" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="loading-fallback" style="min-height:100vh;background:#14141e;display:flex;align-items:center;justify-content:center;font-family:Cairo,sans-serif;color:#aaa;direction:rtl">
+        <p>جاري التحميل...</p>
+      </div>
+    </div>
+    <script>
+      window.onerror = function(msg, src, line, col, err) {
+        document.getElementById('root').innerHTML = '<div style="padding:40px;text-align:center;background:#1a1a2e;color:#eee;min-height:100vh;font-family:Cairo,sans-serif;direction:rtl"><h1 style="color:#f59e0b">خطأ في التحميل</h1><p style="margin-top:16px;color:#aaa;word-break:break-all">' + msg + '</p><p style="color:#666;font-size:12px;margin-top:8px">' + (src||'') + ':' + (line||'') + '</p></div>';
+      };
+      // Clear stale service workers
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          regs.forEach(function(r) { r.unregister(); });
+        });
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
