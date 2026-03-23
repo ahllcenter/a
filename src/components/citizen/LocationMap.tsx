@@ -100,7 +100,9 @@ const LocationMap = ({
     if (interactive && onLocationSelect) {
       map.on('click', (e: L.LeafletMouseEvent) => {
         const { lat: newLat, lng: newLng } = e.latlng;
-        marker.setLatLng([newLat, newLng]);
+        if (markerRef.current) {
+          markerRef.current.setLatLng([newLat, newLng]);
+        }
         if (circleRef.current) {
           circleRef.current.setLatLng([newLat, newLng]);
         }
