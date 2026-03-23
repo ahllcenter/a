@@ -35,6 +35,12 @@ export const verifyOTP = (data: { phone: string; code: string }) =>
 export const loginUser = (data: { phone: string; password: string }) =>
   api.post('/auth/login', data);
 
+export const sendResetCode = (data: { phone: string }) =>
+  api.post('/auth/send-reset-code', data);
+
+export const resetPassword = (data: { phone: string; code: string; newPassword: string }) =>
+  api.post('/auth/reset-password', data);
+
 export const getMe = () =>
   api.get('/auth/me');
 

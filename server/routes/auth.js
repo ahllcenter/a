@@ -171,6 +171,86 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// POST /api/auth/send-reset-code — Send OTP for password reset
+router.post('/send-reset-code', async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: 'رقم الهاتف مطلوب' });
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (!/^964\d{10}$/.test(cleanPhone)) {
+      return res.status(400).json({ error: 'رقم الهاتف يجب أن يبدأ بـ 964 ويتكون من 13 رقم' });
+    }
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, is_verified')
+      .eq('phone', cleanPhone)
+      .maybeSingle();
+
+    if (!user || !user.is_verified) {
+      return res.status(404).json({ error: 'رقم الهاتف غير مسجل أو غير مفعّل' });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = Date.now() + 5 * 60 * 1000;
+
+    await supabase
+      .from('users')
+      .update({ otp_code: otp, otp_expires: otpExpires })
+      .eq('phone', cleanPhone);
+
+    try {
+      await axios.post('https://api.otpiq.com/api/sms', {
+        phoneNumber: cleanPhone, smsType: 'verification',
+        provider: 'whatsapp-sms', verificationCode: otp
+      }, { headers: { 'Authorization': `Bearer ${process.env.OTPIQ_API_KEY}`, 'Content-Type': 'application/json' } });
+    } catch (smsErr) { console.error('OTPiq error:', smsErr.message); }
+
+    res.json({ message: 'تم إرسال رمز إعادة التعيين عبر واتساب' });
+  } catch (err) {
+    console.error('Send reset code error:', err);
+    res.status(500).json({ error: 'حدث خطأ في إرسال رمز إعادة التعيين' });
+  }
+});
+
+// POST /api/auth/reset-password — Verify OTP and set new password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { phone, code, newPassword } = req.body;
+    if (!phone || !code || !newPassword) {
+      return res.status(400).json({ error: 'رقم الهاتف ورمز التحقق وكلمة المرور الجديدة مطلوبة' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' });
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    const { data: user } = await supabase
+      .from('users')
+      .select('*')
+      .eq('phone', cleanPhone)
+      .maybeSingle();
+
+    if (!user) return res.status(404).json({ error: 'المستخدم غير موجود' });
+    if (user.otp_code !== code) return res.status(400).json({ error: 'رمز التحقق غير صحيح' });
+    if (Date.now() > user.otp_expires) return res.status(400).json({ error: 'رمز التحقق منتهي الصلاحية' });
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await supabase
+      .from('users')
+      .update({ password_hash: passwordHash, otp_code: null, otp_expires: null })
+      .eq('phone', cleanPhone);
+
+    res.json({ message: 'تم تغيير كلمة المرور بنجاح' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'حدث خطأ في إعادة تعيين كلمة المرور' });
+  }
+});
+
 // GET /api/auth/me — Get current user info
 router.get('/me', require('../middleware/auth'), async (req, res) => {
   const { data: user } = await supabase
